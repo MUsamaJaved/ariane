@@ -89,6 +89,7 @@ module csr_regfile #(
     logic        csr_we, csr_read;
     logic [63:0] csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
+	logic virtualization_mode;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -97,9 +98,14 @@ module csr_regfile #(
     logic  dret;  // return from debug mode
     // CSR write causes us to mark the FPU state as dirty
     logic  dirty_fp_state_csr;
-    riscv::status_rv64_t  mstatus_q,  mstatus_d;
-    riscv::satp_t         satp_q, satp_d;
-    riscv::dcsr_t         dcsr_q,     dcsr_d;
+    riscv::status_rv64_t       mstatus_q,   mstatus_d;
+    riscv::satp_t              satp_q,      satp_d;
+	// new HS&VS Mode CSRs
+	riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
+    riscv::status_vs_rv64_t    vsstatus_q,  vsstatus_d;
+	riscv::satp_t			   vsatp_q,     vsatp_d;
+	
+    riscv::dcsr_t              dcsr_q,      dcsr_d;
     riscv::csr_t  csr_addr;
     // privilege level register
     riscv::priv_lvl_t   priv_lvl_d, priv_lvl_q;
@@ -107,47 +113,86 @@ module csr_regfile #(
     logic        debug_mode_q, debug_mode_d;
     logic        mtvec_rst_load_q;// used to determine whether we came out of reset
 
-    logic [63:0] dpc_q,       dpc_d;
-    logic [63:0] dscratch0_q, dscratch0_d;
-    logic [63:0] dscratch1_q, dscratch1_d;
-    logic [63:0] mtvec_q,     mtvec_d;
-    logic [63:0] medeleg_q,   medeleg_d;
-    logic [63:0] mideleg_q,   mideleg_d;
-    logic [63:0] mip_q,       mip_d;
-    logic [63:0] mie_q,       mie_d;
-    logic [63:0] mcounteren_q,mcounteren_d;
-    logic [63:0] mscratch_q,  mscratch_d;
-    logic [63:0] mepc_q,      mepc_d;
-    logic [63:0] mcause_q,    mcause_d;
-    logic [63:0] mtval_q,     mtval_d;
+    logic [63:0] dpc_q,        dpc_d;
+    logic [63:0] dscratch0_q,  dscratch0_d;
+    logic [63:0] dscratch1_q,  dscratch1_d;
+    logic [63:0] mtvec_q,      mtvec_d;
+    logic [63:0] medeleg_q,    medeleg_d;
+    logic [63:0] mideleg_q,    mideleg_d;
+    logic [63:0] mip_q,        mip_d;
+    logic [63:0] mie_q,        mie_d;
+    logic [63:0] mcounteren_q, mcounteren_d;
+    logic [63:0] mscratch_q,   mscratch_d;
+    logic [63:0] mepc_q,       mepc_d;
+    logic [63:0] mcause_q,     mcause_d;
+    logic [63:0] mtval_q,      mtval_d;
 
-    logic [63:0] stvec_q,     stvec_d;
-    logic [63:0] scounteren_q,scounteren_d;
-    logic [63:0] sscratch_q,  sscratch_d;
-    logic [63:0] sepc_q,      sepc_d;
-    logic [63:0] scause_q,    scause_d;
-    logic [63:0] stval_q,     stval_d;
-    logic [63:0] dcache_q,    dcache_d;
-    logic [63:0] icache_q,    icache_d;
+    logic [63:0] stvec_q,      stvec_d;
+    logic [63:0] scounteren_q, scounteren_d;
+    logic [63:0] sscratch_q,   sscratch_d;
+    logic [63:0] sepc_q,       sepc_d;
+    logic [63:0] scause_q,     scause_d;
+    logic [63:0] stval_q,      stval_d;
+    logic [63:0] dcache_q,     dcache_d;
+    logic [63:0] icache_q,     icache_d;
 
-    logic        wfi_d,       wfi_q;
+    logic        wfi_d,        wfi_q;
 
-    logic [63:0] cycle_q,     cycle_d;
-    logic [63:0] instret_q,   instret_d;
+    logic [63:0] cycle_q,      cycle_d;
+    logic [63:0] instret_q,    instret_d;
 
     riscv::fcsr_t fcsr_q, fcsr_d;
+	
+
+	logic [63:0] hedeleg_q,    hedeleg_d;
+	logic [63:0] hideleg_q,    hideleg_d;
+	logic [63:0] hvip_q,	   hvip_d;
+	logic [63:0] hip_q,        hip_d;
+	logic [63:0] hie_q,        hie_d;
+	logic [63:0] hgeip_q,      hgeip_d;
+	logic [63:0] hgeie_q,      hgeie_d;
+	logic [63:0] hcounteren_q, hcounteren_d;
+	logic [63:0] htimedelta_q, htimedelta_d;
+	logic [63:0] htimedeltah_q,htimedeltah_d;
+	logic [63:0] htval_q,      htval_d;
+	logic [63:0] htinst_q,     htinst_d;
+	logic [63:0] hgatp_q,      hgatp_d;	
+	
+	logic [63:0] vsip_q,       vsip_d;
+	logic [63:0] vsie_q,       vsie_d;
+	logic [63:0] vstvec_q,     vstvec_d;
+	logic [63:0] vsscratch_q,  vsscratch_d;
+	logic [63:0] vsepc_q,      vsepc_d;
+	logic [63:0] vscause_q,    vscause_d;
+	logic [63:0] vstval_q,     vstval_d;	
+
+
+	
     // ----------------
     // Assignments
     // ----------------
     assign csr_addr = riscv::csr_t'(csr_addr_i);
     assign fs_o = mstatus_q.fs;
+
+    // ----------------
+    // Virtualization Mode Check
+    // ----------------
+    always_comb begin : virtualization_mode_process
+        virtualization_mode = 1'b0;
+        
+        if (ISA_CODE & h_extension_mask) begin
+			virtualization_mode = 1'b1;
+        end
+			
+	end
+
     // ----------------
     // CSR Read logic
     // ----------------
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
         read_access_exception = 1'b0;
-        csr_rdata = 64'b0;
+        z = 64'b0;
         perf_addr_o = csr_addr.address[4:0];
 
         if (csr_read) begin
@@ -230,6 +275,34 @@ module csr_regfile #(
                 riscv::CSR_MHARTID:            csr_rdata = hart_id_i;
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
+
+				// Hypervisor CSRs 				
+                riscv::CSR_HSSTATUS:           csr_rdata = hstatus_q;
+                riscv::CSR_HEDELEG:            csr_rdata = hedeleg_q;
+                riscv::CSR_HIDELEG:            csr_rdata = hideleg_q;
+                riscv::CSR_HVIP:               csr_rdata = hvip_q;
+                riscv::CSR_HIP:                csr_rdata = hip_q;
+                riscv::CSR_HIE:                csr_rdata = hie_q;
+                riscv::CSR_HGEIP:              csr_rdata = hgeip_q;
+                riscv::CSR_HGEIE:              csr_rdata = hgeie_q;
+                riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
+                riscv::CSR_HTIMEDELTA:         csr_rdata = htimedelta_q;
+                riscv::CSR_HTIMEDELTAH:        csr_rdata = htimedeltah_q;
+                riscv::CSR_HTVAL:              csr_rdata = htval_q;
+                riscv::CSR_HTINST:             csr_rdata = htinst_q;
+                riscv::CSR_HGATP:              csr_rdata = hgatp_q;	
+				
+				// Virtual Supervisor CSRs
+                riscv::CSR_VSSTATUS:	       csr_rdata = vsstatus_q;
+                riscv::CSR_VSIP:               csr_rdata = vsip_q;
+                riscv::CSR_VSIE:               csr_rdata = vsie_q;
+                riscv::CSR_VSTVEC:             csr_rdata = vstvec_q;
+                riscv::CSR_VSSCRATCH:          csr_rdata = vsscratch_q;
+                riscv::CSR_VSEPC:              csr_rdata = vsepc_q;
+                riscv::CSR_VSCAUSE:            csr_rdata = vscause_q;
+                riscv::CSR_VSTVAL:             csr_rdata = vstval_q;
+                riscv::CSR_VSATP:              csr_rdata = vsatp_q;			
+								
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -629,6 +702,7 @@ module csr_regfile #(
                 mstatus_d.mpie = mstatus_q.mie;
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
+				mstatus_d.mpv  = virtualization_mode;
                 mcause_d       = ex_i.cause;
                 // set epc
                 mepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
@@ -641,6 +715,15 @@ module csr_regfile #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[63])) ? '0 : ex_i.tval;
+								  
+                mstatus_d.gva  = (ariane_pkg::ZERO_TVAL
+                                  && (ex_i.cause inside {
+                                    riscv::ILLEGAL_INSTR,
+                                    riscv::BREAKPOINT,
+                                    riscv::ENV_CALL_UMODE,
+                                    riscv::ENV_CALL_SMODE,
+                                    riscv::ENV_CALL_MMODE
+                                  } || ex_i.cause[63])) ? 1'b0 : 1'b1;								  
             end
 
             priv_lvl_d = trap_to_priv_lvl;

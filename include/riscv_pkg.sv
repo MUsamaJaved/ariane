@@ -48,9 +48,54 @@ package riscv;
         Dirty   = 2'b11
     } xs_t;
 
+
+    typedef struct packed {
+		logic		  sd;     // signal dirty state
+        logic [63:34] wpri6;  // writes preserved reads ignored
+        xlen_t        uxl;    // variable supervisor mode xlen - hardwired to zero        
+        logic [11:0]  wpri5;  // writes preserved reads ignored
+        logic         mxr;    // Make eXecutable Readable bit
+        logic         sum;    // 
+        logic         wpri4;  // writes preserved reads ignored
+        xs_t          xs;     // extension register 
+        xs_t          fs;	  // floating point extension register
+        logic [3:0]   wpri3;  // writes preserved reads ignored
+        logic         spp;    // holds the previous privilege mode up to supervisor
+        logic         wpri2;  // writes preserved reads ignored
+        logic         ube;    // little-endian (UBE=0) or big-endian (UBE=1)
+        logic         spie;   // supervisor interrupts enable bit active prior to trap
+        logic [2:0]   wpri1;  // writes preserved reads ignored
+        logic         sie;    // supervisor interrupts enable
+        logic         wpri0;  // writes preserved reads ignored
+    } status_vs_rv64_t;
+
+
+    typedef struct packed {
+        logic [63:34] wpri4;  // writes preserved reads ignored
+        xlen_t        vsxl;   // variable supervisor mode xlen - hardwired to zero        
+        logic [8:0]   wpri3;  // writes preserved reads ignored
+        logic         vtsr;   // VS trap sret
+        logic         vtw;    // VS time wait
+        logic         vtvm;   // VS trap virtual memory
+        logic [1:0]   wpri2;  // writes preserved reads ignored
+        logic [5:0]   vgein;  // Virtual Guest External Interrupt Number
+        logic [1:0]   wpri1;  // writes preserved reads ignored
+        logic         hu;     // Hypervisor User mode
+        logic         spvp;   // Supervisor Previous Virtual Privilege
+        logic         spv;    // Supervisor Previous Virtualization mode
+        logic         gva;    // Guest Virtual Address)
+        logic         vbse;   // Controls endian-ness
+        logic [4:0]   wpri0;  // writes preserved reads ignored
+    } status_hs_rv64_t;
+
+
     typedef struct packed {
         logic         sd;     // signal dirty state - read-only
-        logic [62:36] wpri4;  // writes preserved reads ignored
+        logic [62:40] wpri4;  // writes preserved reads ignored
+        logic         mpv;    // Machine Previous Virtualization Mode
+        logic         gva;    // Guest Virtual Address
+        logic         mbe;    // mbe. previously merged into wpri4
+        logic         sbe;    // sbe. previously merged into wpri4		
         xlen_t        sxl;    // variable supervisor mode xlen - hardwired to zero
         xlen_t        uxl;    // variable user mode xlen - hardwired to zero
         logic [8:0]   wpri3;  // writes preserved reads ignored
@@ -363,6 +408,31 @@ package riscv;
         CSR_MHARTID        = 12'hF14,
         CSR_MCYCLE         = 12'hB00,
         CSR_MINSTRET       = 12'hB02,
+        // Hypervisor Mode CSRs
+        CSR_HSSTATUS       = 12'h600,
+        CSR_HEDELEG        = 12'h602,
+        CSR_HIDELEG        = 12'h603,
+        CSR_HIE            = 12'h604,
+        CSR_HCOUNTEREN     = 12'h606,
+        CSR_HGEIE          = 12'h607,
+        CSR_HTVAL          = 12'h643,
+        CSR_HIP            = 12'h644,
+        CSR_HVIP           = 12'h645,
+        CSR_HTINST         = 12'h64A,
+        CSR_HGEIP          = 12'hE12,
+        CSR_HGATP          = 12'h680,
+        CSR_HTIMEDELTA     = 12'h605,
+        CSR_HTIMEDELTAH    = 12'h615,		
+        // Virtual Supervisor Mode CSRs
+        CSR_VSSTATUS       = 12'h200,
+        CSR_VSIE           = 12'h204,
+        CSR_VSTVEC         = 12'h205,
+        CSR_VSSCRATCH      = 12'h240,
+        CSR_VSEPC          = 12'h241,
+        CSR_VSCAUSE        = 12'h242,
+        CSR_VSTVAL         = 12'h243,
+        CSR_VSIP           = 12'h244,
+        CSR_VSATP          = 12'h280,
         // Performance counters (Machine Mode)
         CSR_ML1_ICACHE_MISS = 12'hB03,  // L1 Instr Cache Miss
         CSR_ML1_DCACHE_MISS = 12'hB04,  // L1 Data Cache Miss
