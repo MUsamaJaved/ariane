@@ -103,6 +103,7 @@ module csr_regfile #(
 	// new HS&VS Mode CSRs
 	riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
     riscv::status_vs_rv64_t    vsstatus_q,  vsstatus_d;
+	riscv::hgatp_t			   hgatp_q,     hgatp_d;
 	riscv::satp_t			   vsatp_q,     vsatp_d;
 	
     riscv::dcsr_t              dcsr_q,      dcsr_d;
@@ -156,7 +157,6 @@ module csr_regfile #(
 	logic [63:0] htimedeltah_q,htimedeltah_d;
 	logic [63:0] htval_q,      htval_d;
 	logic [63:0] htinst_q,     htinst_d;
-	logic [63:0] hgatp_q,      hgatp_d;	
 	
 	logic [63:0] vsip_q,       vsip_d;
 	logic [63:0] vsie_q,       vsie_d;
@@ -286,7 +286,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hstatus_q;
                     end
-				end					
+                end					
 								   
                 riscv::CSR_HEDELEG: begin
                     if (!ISA_CODE[7]) begin
@@ -294,7 +294,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hedeleg_q;
                     end
-				end
+                end
 				
                 riscv::CSR_HIDELEG: begin
                     if (!ISA_CODE[7]) begin
@@ -302,7 +302,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hideleg_q;
                     end
-				end 
+                end 
 				
                 riscv::CSR_HVIP: begin
                     if (!ISA_CODE[7]) begin
@@ -310,7 +310,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hvip_q;
                     end
-				end
+                end
 				
                 riscv::CSR_HIP: begin
                     if (!ISA_CODE[7]) begin
@@ -318,7 +318,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hip_q;
                     end
-				end   
+                end   
 				
                 riscv::CSR_HIE: begin
                     if (!ISA_CODE[7]) begin
@@ -326,7 +326,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hie_q;
                     end
-				end
+                end
                 
                 riscv::CSR_HGEIP: begin
                     if (!ISA_CODE[7]) begin
@@ -334,7 +334,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hgeip_q;
                     end
-				end
+                end
 				
                 riscv::CSR_HGEIE: begin
                     if (!ISA_CODE[7]) begin
@@ -342,7 +342,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hgeie_q;
                     end
-				end
+                end
 				
                 riscv::CSR_HCOUNTEREN: begin
                     if (!ISA_CODE[7]) begin
@@ -350,7 +350,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hcounteren_q;
                     end
-				end					
+                end					
 				         
                 riscv::CSR_HTIMEDELTA: begin
                     if (!ISA_CODE[7]) begin
@@ -358,7 +358,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = htimedelta_q;
                     end
-				end					
+                end					
 				         
                 riscv::CSR_HTIMEDELTAH: begin
                     if (!ISA_CODE[7]) begin
@@ -366,7 +366,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = htimedeltah_q;
                     end
-				end					
+                end					
 				        
                 riscv::CSR_HTVAL: begin
                     if (!ISA_CODE[7]) begin
@@ -374,7 +374,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = htval_q;
                     end
-				end					
+                end					
 				              
                 riscv::CSR_HTINST: begin
                     if (!ISA_CODE[7]) begin
@@ -382,15 +382,22 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = htinst_q;
                     end
-				end					
+                end					
 				             
                 riscv::CSR_HGATP: begin
-                    if (!ISA_CODE[7]) begin
+                    if (!ISA_CODE[7]) 
+                        read_access_exception = 1'b1;
+						
+                    else begin					
+					if ( (virtualization_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = hgatp_q;
                     end
-				end					
+					
+                    end // !ISA_CODE[7] ends    
+                    
+                end					
 				              	
 				
 				// Virtual Supervisor CSRs
@@ -400,7 +407,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsstatus_q;
                     end
-				end	       
+                end	       
 				
                 riscv::CSR_VSIP: begin
                     if (!ISA_CODE[7]) begin
@@ -408,7 +415,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsip_q;
                     end
-				end	       
+                end	       
 				               
                 riscv::CSR_VSIE: begin
                     if (!ISA_CODE[7]) begin
@@ -416,7 +423,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsie_q;
                     end
-				end	       
+                end	       
 				               
                 riscv::CSR_VSTVEC: begin
                     if (!ISA_CODE[7]) begin
@@ -424,7 +431,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vstvec_q;
                     end
-				end	       
+                end	       
 				             
                 riscv::CSR_VSSCRATCH: begin
                     if (!ISA_CODE[7]) begin
@@ -432,7 +439,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsscratch_q;
                     end
-				end	       
+                end	       
 				          
                 riscv::CSR_VSEPC: begin
                     if (!ISA_CODE[7]) begin
@@ -440,7 +447,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsepc_q;
                     end
-				end	       
+                end	       
 				              
                 riscv::CSR_VSCAUSE: begin
                     if (!ISA_CODE[7]) begin
@@ -448,7 +455,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vscause_q;
                     end
-				end	       
+                end	       
 				            
                 riscv::CSR_VSTVAL: begin
                     if (!ISA_CODE[7]) begin
@@ -456,7 +463,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vstval_q;
                     end
-				end	       
+                end	       
 				             
                 riscv::CSR_VSATP: begin
                     if (!ISA_CODE[7]) begin
@@ -464,7 +471,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = vsatp_q;
                     end
-				end	       
+                end	       
 				              											
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;

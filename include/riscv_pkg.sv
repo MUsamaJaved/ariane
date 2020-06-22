@@ -150,6 +150,13 @@ package riscv;
         logic [43:0] ppn;
     } satp_t;
 
+    typedef struct packed {
+        logic [3:0]  mode;
+        logic [1:0]  vmid;		
+        logic [13:0] asid;
+        logic [43:0] ppn;
+    } hgatp_t;	
+
     // --------------------
     // Instruction Types
     // --------------------
@@ -347,7 +354,7 @@ package riscv;
     localparam logic [63:0] INSTR_GUEST_PAGE_FAULT   = 20; // Instruction guest-page fault
     localparam logic [63:0] LD_GUEST_PAGE_FAULT      = 21; // Load guest-page fault
     localparam logic [63:0] VIRTUAL_INST             = 22; // Virtual instruction
-    localparam logic [63:0] ST_GUEST_ACCESS_FAULT    = 23;	// Store/AMO guest-page fault
+    localparam logic [63:0] ST_GUEST_ACCESS_FAULT    = 23; // Store/AMO guest-page fault
     localparam logic [63:0] DEBUG_REQUEST            = 24; // Debug request
 
     localparam int unsigned IRQ_S_SOFT  = 1;
