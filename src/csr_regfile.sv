@@ -180,8 +180,10 @@ module csr_regfile #(
     always_comb begin : virtualization_mode_process
         virtualization_mode = 1'b0;
         
-        if (ISA_CODE & h_extension_mask) begin
+        if (ISA_CODE[7]) begin
 			virtualization_mode = 1'b1;
+        end else begin
+			virtualization_mode = 1'b0;
         end
 			
 	end
@@ -275,34 +277,195 @@ module csr_regfile #(
                 riscv::CSR_MHARTID:            csr_rdata = hart_id_i;
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
-
+				riscv::CSR_MINST:;
+				riscv::CSR_MTVAL2:;
 				// Hypervisor CSRs 				
-                riscv::CSR_HSSTATUS:           csr_rdata = hstatus_q;
-                riscv::CSR_HEDELEG:            csr_rdata = hedeleg_q;
-                riscv::CSR_HIDELEG:            csr_rdata = hideleg_q;
-                riscv::CSR_HVIP:               csr_rdata = hvip_q;
-                riscv::CSR_HIP:                csr_rdata = hip_q;
-                riscv::CSR_HIE:                csr_rdata = hie_q;
-                riscv::CSR_HGEIP:              csr_rdata = hgeip_q;
-                riscv::CSR_HGEIE:              csr_rdata = hgeie_q;
-                riscv::CSR_HCOUNTEREN:         csr_rdata = hcounteren_q;
-                riscv::CSR_HTIMEDELTA:         csr_rdata = htimedelta_q;
-                riscv::CSR_HTIMEDELTAH:        csr_rdata = htimedeltah_q;
-                riscv::CSR_HTVAL:              csr_rdata = htval_q;
-                riscv::CSR_HTINST:             csr_rdata = htinst_q;
-                riscv::CSR_HGATP:              csr_rdata = hgatp_q;	
+                riscv::CSR_HSSTATUS: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hstatus_q;
+                    end
+				end					
+								   
+                riscv::CSR_HEDELEG: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hedeleg_q;
+                    end
+				end
+				
+                riscv::CSR_HIDELEG: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hideleg_q;
+                    end
+				end 
+				
+                riscv::CSR_HVIP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hvip_q;
+                    end
+				end
+				
+                riscv::CSR_HIP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hip_q;
+                    end
+				end   
+				
+                riscv::CSR_HIE: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hie_q;
+                    end
+				end
+                
+                riscv::CSR_HGEIP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hgeip_q;
+                    end
+				end
+				
+                riscv::CSR_HGEIE: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hgeie_q;
+                    end
+				end
+				
+                riscv::CSR_HCOUNTEREN: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hcounteren_q;
+                    end
+				end					
+				         
+                riscv::CSR_HTIMEDELTA: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = htimedelta_q;
+                    end
+				end					
+				         
+                riscv::CSR_HTIMEDELTAH: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = htimedeltah_q;
+                    end
+				end					
+				        
+                riscv::CSR_HTVAL: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = htval_q;
+                    end
+				end					
+				              
+                riscv::CSR_HTINST: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = htinst_q;
+                    end
+				end					
+				             
+                riscv::CSR_HGATP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = hgatp_q;
+                    end
+				end					
+				              	
 				
 				// Virtual Supervisor CSRs
-                riscv::CSR_VSSTATUS:	       csr_rdata = vsstatus_q;
-                riscv::CSR_VSIP:               csr_rdata = vsip_q;
-                riscv::CSR_VSIE:               csr_rdata = vsie_q;
-                riscv::CSR_VSTVEC:             csr_rdata = vstvec_q;
-                riscv::CSR_VSSCRATCH:          csr_rdata = vsscratch_q;
-                riscv::CSR_VSEPC:              csr_rdata = vsepc_q;
-                riscv::CSR_VSCAUSE:            csr_rdata = vscause_q;
-                riscv::CSR_VSTVAL:             csr_rdata = vstval_q;
-                riscv::CSR_VSATP:              csr_rdata = vsatp_q;			
-								
+                riscv::CSR_VSSTATUS: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsstatus_q;
+                    end
+				end	       
+				
+                riscv::CSR_VSIP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsip_q;
+                    end
+				end	       
+				               
+                riscv::CSR_VSIE: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsie_q;
+                    end
+				end	       
+				               
+                riscv::CSR_VSTVEC: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vstvec_q;
+                    end
+				end	       
+				             
+                riscv::CSR_VSSCRATCH: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsscratch_q;
+                    end
+				end	       
+				          
+                riscv::CSR_VSEPC: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsepc_q;
+                    end
+				end	       
+				              
+                riscv::CSR_VSCAUSE: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vscause_q;
+                    end
+				end	       
+				            
+                riscv::CSR_VSTVAL: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vstval_q;
+                    end
+				end	       
+				             
+                riscv::CSR_VSATP: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        csr_rdata = vsatp_q;
+                    end
+				end	       
+				              											
                 // Counters and Timers
                 riscv::CSR_CYCLE:              csr_rdata = cycle_q;
                 riscv::CSR_INSTRET:            csr_rdata = instret_q;
@@ -587,6 +750,8 @@ module csr_regfile #(
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
+				riscv::CSR_MINST:;
+				riscv::CSR_MTVAL2:;				
                 // performance counters
                 riscv::CSR_MCYCLE:             cycle_d     = csr_wdata;
                 riscv::CSR_MINSTRET:           instret     = csr_wdata;
