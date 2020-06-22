@@ -330,21 +330,25 @@ package riscv;
     // ----------------------
     // Exception Cause Codes
     // ----------------------
-    localparam logic [63:0] INSTR_ADDR_MISALIGNED = 0;
-    localparam logic [63:0] INSTR_ACCESS_FAULT    = 1;
-    localparam logic [63:0] ILLEGAL_INSTR         = 2;
-    localparam logic [63:0] BREAKPOINT            = 3;
-    localparam logic [63:0] LD_ADDR_MISALIGNED    = 4;
-    localparam logic [63:0] LD_ACCESS_FAULT       = 5;
-    localparam logic [63:0] ST_ADDR_MISALIGNED    = 6;
-    localparam logic [63:0] ST_ACCESS_FAULT       = 7;
-    localparam logic [63:0] ENV_CALL_UMODE        = 8;  // environment call from user mode
-    localparam logic [63:0] ENV_CALL_SMODE        = 9;  // environment call from supervisor mode
-    localparam logic [63:0] ENV_CALL_MMODE        = 11; // environment call from machine mode
-    localparam logic [63:0] INSTR_PAGE_FAULT      = 12; // Instruction page fault
-    localparam logic [63:0] LOAD_PAGE_FAULT       = 13; // Load page fault
-    localparam logic [63:0] STORE_PAGE_FAULT      = 15; // Store page fault
-    localparam logic [63:0] DEBUG_REQUEST         = 24; // Debug request
+    localparam logic [63:0] INSTR_ADDR_MISALIGNED    = 0;
+    localparam logic [63:0] INSTR_ACCESS_FAULT       = 1;
+    localparam logic [63:0] ILLEGAL_INSTR            = 2;
+    localparam logic [63:0] BREAKPOINT               = 3;
+    localparam logic [63:0] LD_ADDR_MISALIGNED       = 4;
+    localparam logic [63:0] LD_ACCESS_FAULT          = 5;
+    localparam logic [63:0] ST_ADDR_MISALIGNED       = 6;
+    localparam logic [63:0] ST_ACCESS_FAULT          = 7;
+    localparam logic [63:0] ENV_CALL_UMODE           = 8;  // environment call from user mode
+    localparam logic [63:0] ENV_CALL_SMODE           = 9;  // environment call from supervisor mode
+    localparam logic [63:0] ENV_CALL_MMODE           = 11; // environment call from machine mode
+    localparam logic [63:0] INSTR_PAGE_FAULT         = 12; // Instruction page fault
+    localparam logic [63:0] LOAD_PAGE_FAULT          = 13; // Load page fault
+    localparam logic [63:0] STORE_PAGE_FAULT         = 15; // Store page fault
+    localparam logic [63:0] INSTR_GUEST_PAGE_FAULT   = 20; // Instruction guest-page fault
+    localparam logic [63:0] LD_GUEST_PAGE_FAULT      = 21; // Load guest-page fault
+    localparam logic [63:0] VIRTUAL_INST             = 22; // Virtual instruction
+    localparam logic [63:0] ST_GUEST_ACCESS_FAULT    = 23;	// Store/AMO guest-page fault
+    localparam logic [63:0] DEBUG_REQUEST            = 24; // Debug request
 
     localparam int unsigned IRQ_S_SOFT  = 1;
     localparam int unsigned IRQ_M_SOFT  = 3;
