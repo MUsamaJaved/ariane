@@ -277,8 +277,8 @@ module csr_regfile #(
                 riscv::CSR_MHARTID:            csr_rdata = hart_id_i;
                 riscv::CSR_MCYCLE:             csr_rdata = cycle_q;
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
-				riscv::CSR_MINST:;
-				riscv::CSR_MTVAL2:;
+                riscv::CSR_MINST:;
+                riscv::CSR_MTVAL2:;
 				// Hypervisor CSRs 				
                 riscv::CSR_HSSTATUS: begin
                     if (!ISA_CODE[7]) begin
