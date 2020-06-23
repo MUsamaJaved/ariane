@@ -763,8 +763,59 @@ module csr_regfile #(
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
+				
+				// new CSRs
 				riscv::CSR_MINST:;
-				riscv::CSR_MTVAL2:;				
+				riscv::CSR_MTVAL2:;	
+
+                riscv::CSR_VSTVEC: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        vstvec_d = csr_wdata;
+                    end
+                end	       
+				             
+                riscv::CSR_VSSCRATCH: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        vsscratch_d = csr_wdata;
+                    end
+                end	       
+				          
+                riscv::CSR_VSEPC: begin
+                    if (!ISA_CODE[7]) begin
+                        read_access_exception = 1'b1;
+                    end else begin
+                        vsepc_d = {csr_wdata[63:1], 1'b0};
+                    end
+                end				
+
+                riscv::CSR_VSCAUSE: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vscause_d = csr_wdata;
+                    end
+                end	       
+				            
+                riscv::CSR_VSTVAL: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vstval_d = csr_wdata;
+                    end
+                end	       
+				             
+                riscv::CSR_VSATP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vsatp_d = csr_wdata;
+                    end
+                end
+				
                 // performance counters
                 riscv::CSR_MCYCLE:             cycle_d     = csr_wdata;
                 riscv::CSR_MINSTRET:           instret     = csr_wdata;
@@ -860,21 +911,45 @@ module csr_regfile #(
                 mstatus_d.spie = mstatus_q.sie;
                 // this can either be user or supervisor mode
                 mstatus_d.spp  = priv_lvl_q[0];
-                // set cause
-                scause_d       = ex_i.cause;
-                // set epc
-                sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-                // set mtval or stval
-                stval_d        = (ariane_pkg::ZERO_TVAL
-                                  && (ex_i.cause inside {
-                                    riscv::ILLEGAL_INSTR,
-                                    riscv::BREAKPOINT,
-                                    riscv::ENV_CALL_UMODE,
-                                    riscv::ENV_CALL_SMODE,
-                                    riscv::ENV_CALL_MMODE
-                                  } || ex_i.cause[63])) ? '0 : ex_i.tval;
-								  				
+
+                // set scause or vscause depending upon virtualization mode
+				if (virtualization_mode) begin
+				vscause_d      = ex_i.cause;
+				end else begin				
+				scause_d       = ex_i.cause;
+				end
+				
+                // set sepc or vsepc depending upon virtualization mode
+				if (virtualization_mode) begin
+                vsepc_d        = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
+				end else begin				
+				sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
+				end                
+
+				// set stval or vstval depending upon virtualization mode
+				if (virtualization_mode) begin		
+					vstval_d   = (ariane_pkg::ZERO_TVAL
+								  && (ex_i.cause inside {
+									riscv::ILLEGAL_INSTR,
+									riscv::BREAKPOINT,
+									riscv::ENV_CALL_UMODE,
+									riscv::ENV_CALL_SMODE,
+									riscv::ENV_CALL_MMODE
+								  } || ex_i.cause[63])) ? '0 : ex_i.tval;
+					
+				end else begin	
+				    stval_d    = (ariane_pkg::ZERO_TVAL
+								  && (ex_i.cause inside {
+									riscv::ILLEGAL_INSTR,
+									riscv::BREAKPOINT,
+									riscv::ENV_CALL_UMODE,
+									riscv::ENV_CALL_SMODE,
+									riscv::ENV_CALL_MMODE
+								  } || ex_i.cause[63])) ? '0 : ex_i.tval;
+				end
+				
 				htinst_d = 64'b0;
+				
 				// VS and HS-Mode cases								  
 				if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_S) begin
 					if(virtualization_mode == 1'b1) begin
@@ -1226,9 +1301,13 @@ module csr_regfile #(
         end
 
         epc_o = mepc_q[riscv::VLEN-1:0];
-        // we are returning from supervisor mode, so take the sepc register
+        // we are returning from supervisor mode, so take the sepc or vsepc dep upom virtualization mode
         if (sret) begin
-            epc_o = sepc_q[riscv::VLEN-1:0];
+			if (virtualization_mode ) begin
+            epc_o = vsepc_q[riscv::VLEN-1:0];
+			end else begin
+			epc_o = sepc_q[riscv::VLEN-1:0];
+			end
         end
         // we are returning from debug mode, to take the dpc register
         if (dret) begin
