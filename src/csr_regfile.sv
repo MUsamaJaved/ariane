@@ -73,6 +73,7 @@ module csr_regfile #(
     output logic                  tvm_o,                      // trap virtual memory
     output logic                  tw_o,                       // timeout wait
     output logic                  tsr_o,                      // trap sret
+	output logic                  hu_o,                       // Hypervisor User mode	
     output logic                  debug_mode_o,               // we are in debug mode -> that will change some decoding
     output logic                  single_step_o,              // we are in single-step mode
     // Caches
@@ -89,7 +90,7 @@ module csr_regfile #(
     logic        csr_we, csr_read;
     logic [63:0] csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
-	logic virtualization_mode;
+	logic virtualization_mode, trap_virt_lvl;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -100,7 +101,7 @@ module csr_regfile #(
     logic  dirty_fp_state_csr;
     riscv::status_rv64_t       mstatus_q,   mstatus_d;
     riscv::satp_t              satp_q,      satp_d;
-	// new HS&VS Mode CSRs
+	// new HS & VS Mode CSRs
 	riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
     riscv::status_vs_rv64_t    vsstatus_q,  vsstatus_d;
 	riscv::hgatp_t			   hgatp_q,     hgatp_d;
@@ -734,6 +735,11 @@ module csr_regfile #(
                 riscv::CSR_MIDELEG: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
                     mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask);
+
+					if(ISA_CODE[7]) begin
+					mideleg_d = mideleg_d | { 53'b0, 1'b1, 3'b0, 1'b1, 3'b0, 1'b1, 2'b0} ;
+					end
+					
                 end
                 // mask the register so that unsupported interrupts can never be set
                 riscv::CSR_MIE: begin
@@ -867,6 +873,34 @@ module csr_regfile #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[63])) ? '0 : ex_i.tval;
+								  				
+				htinst_d = 64'b0;
+				// VS and HS-Mode cases								  
+				if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_S) begin
+					if(virtualization_mode == 1'b1) begin
+						hstatus_d.spv = 1'b1;
+						hstatus_d.spp = 1'b1;
+						vsstatus_d.spv = 1'b1;
+						virtualization_mode = 1'b1;
+					end else begin
+						hstatus_d.spv = 1'b0;
+						hstatus_d.spp = 1'b1;
+						virtualization_mode = 1'b0;
+					end			
+				end 
+
+				// VU and U-Mode cases
+				if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_U) begin
+					if (virtualization_mode == 1'b1) begin
+						hstatus_d.spv = 1'b1;
+						hstatus_d.spp = 1'b0;
+						vsstatus_d.spp = 1'b0;
+					end else begin
+						hstatus_d.spv = 1'b0;
+						hstatus_d.spp = 1'b0;					
+					end	
+				end
+				
             // trap to machine mode
             end else begin
                 // update mstatus
@@ -874,7 +908,16 @@ module csr_regfile #(
                 mstatus_d.mpie = mstatus_q.mie;
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
-				mstatus_d.mpv  = virtualization_mode;
+								
+				virtualization_mode = 1'b0;
+				// check current priv. level and update mstatus.MPV
+				if (ISA_CODE[7]) begin
+					if (priv_lvl_q == riscv::PRIV_LVL_M) begin
+						mstatus_d.mpv  = 1'b0;
+					end else begin
+						mstatus_d.mpv  = virtualization_mode;
+					end
+				end
                 mcause_d       = ex_i.cause;
                 // set epc
                 mepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
@@ -1005,6 +1048,13 @@ module csr_regfile #(
             mstatus_d.mpp  = riscv::PRIV_LVL_U;
             // set mpie to 1
             mstatus_d.mpie = 1'b1;
+			
+			if(mstatus_q.mpp == riscv::PRIV_LVL_M) begin
+				virtualization_mode = 1'b0;
+			end else begin
+				virtualization_mode = mstatus_q.mpv;
+			end
+			
         end
 
         if (sret) begin
