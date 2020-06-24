@@ -154,8 +154,6 @@ module csr_regfile #(
 	logic [63:0] hgeip_q,      hgeip_d;
 	logic [63:0] hgeie_q,      hgeie_d;
 	logic [63:0] hcounteren_q, hcounteren_d;
-	logic [63:0] htimedelta_q, htimedelta_d;
-	logic [63:0] htimedeltah_q,htimedeltah_d;
 	logic [63:0] htval_q,      htval_d;
 	logic [63:0] htinst_q,     htinst_d;
 	
@@ -351,23 +349,7 @@ module csr_regfile #(
                     end else begin
                         csr_rdata = hcounteren_q;
                     end
-                end					
-				         
-                riscv::CSR_HTIMEDELTA: begin
-                    if (!ISA_CODE[7]) begin
-                        read_access_exception = 1'b1;
-                    end else begin
-                        csr_rdata = htimedelta_q;
-                    end
-                end					
-				         
-                riscv::CSR_HTIMEDELTAH: begin
-                    if (!ISA_CODE[7]) begin
-                        read_access_exception = 1'b1;
-                    end else begin
-                        csr_rdata = htimedeltah_q;
-                    end
-                end					
+                end						         			
 				        
                 riscv::CSR_HTVAL: begin
                     if (!ISA_CODE[7]) begin
@@ -767,18 +749,34 @@ module csr_regfile #(
 				// new CSRs
 				riscv::CSR_MINST:;
 				riscv::CSR_MTVAL2:;	
+				
+                riscv::CSR_HCOUNTEREN: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hcounteren_q = {{32'b0}, csr_wdata[31:0]};
+                    end
+                end					
+
+                riscv::CSR_HTVAL: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        htval_d = csr_wdata;
+                    end
+                end	
 
                 riscv::CSR_VSTVEC: begin
                     if (!ISA_CODE[7]) begin
-                        read_access_exception = 1'b1;
+                        update_access_exception = 1'b1;
                     end else begin
-                        vstvec_d = csr_wdata;
+                        vstvec_d = {csr_wdata[63:2], 1'b0, csr_wdata[0]};
                     end
                 end	       
 				             
                 riscv::CSR_VSSCRATCH: begin
                     if (!ISA_CODE[7]) begin
-                        read_access_exception = 1'b1;
+                        update_access_exception = 1'b1;
                     end else begin
                         vsscratch_d = csr_wdata;
                     end
@@ -786,7 +784,7 @@ module csr_regfile #(
 				          
                 riscv::CSR_VSEPC: begin
                     if (!ISA_CODE[7]) begin
-                        read_access_exception = 1'b1;
+                        update_access_exception = 1'b1;
                     end else begin
                         vsepc_d = {csr_wdata[63:1], 1'b0};
                     end
@@ -927,6 +925,9 @@ module csr_regfile #(
 				end                
 
 				// set stval or vstval depending upon virtualization mode
+				// INCOMPLETE: how to handle update to htval?
+				htval_d = 64'b0;
+				
 				if (virtualization_mode) begin		
 					vstval_d   = (ariane_pkg::ZERO_TVAL
 								  && (ex_i.cause inside {
@@ -1283,9 +1284,13 @@ module csr_regfile #(
     // output assignments dependent on privilege mode
     always_comb begin : priv_output
         trap_vector_base_o = {mtvec_q[riscv::VLEN-1:2], 2'b0};
-        // output user mode stvec
+        // output user mode stvec or vstvec_d depending upon virtualization mode
         if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
-            trap_vector_base_o = {stvec_q[riscv::VLEN-1:2], 2'b0};
+		    if (virtualization_mode) begin
+				trap_vector_base_o = {vstvec_q[riscv::VLEN-1:2], 2'b0};
+			end else begin
+				trap_vector_base_o = {stvec_q[riscv::VLEN-1:2], 2'b0};
+			end
         end
 
         // if we are in debug mode jump to a specific address
@@ -1296,7 +1301,7 @@ module csr_regfile #(
         // check if we are in vectored mode, if yes then do BASE + 4 * cause
         // we are imposing an additional alignment-constraint of 64 * 4 bytes since
         // we want to spare the costly addition
-        if ((mtvec_q[0] || stvec_q[0]) && ex_i.cause[63]) begin
+        if ((mtvec_q[0] || stvec_q[0] || vstvec_q[0]) && ex_i.cause[63]) begin
             trap_vector_base_o[7:2] = ex_i.cause[5:0];
         end
 
