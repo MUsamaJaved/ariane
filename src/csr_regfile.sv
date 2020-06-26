@@ -717,9 +717,9 @@ module csr_regfile #(
                 riscv::CSR_MIDELEG: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
 
-					if(ISA_CODE[7]) begin
+                    if (ISA_CODE[7]) begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP ;					
-					end
+                    end
 					
                     mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask);
 					
@@ -727,6 +727,11 @@ module csr_regfile #(
                 // mask the register so that unsupported interrupts can never be set
                 riscv::CSR_MIE: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_MSIP | riscv::MIP_MTIP | riscv::MIP_MEIP;
+
+                    if (ISA_CODE[7]) begin
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP ;					
+                    end
+
                     mie_d = (mie_q & ~mask) | (csr_wdata & mask); // we only support supervisor and M-mode interrupts
                 end
 
@@ -744,6 +749,11 @@ module csr_regfile #(
                 riscv::CSR_MTVAL:              mtval_d     = csr_wdata;
                 riscv::CSR_MIP: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
+					
+                    if (ISA_CODE[7]) begin
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP ;					
+                    end					
+					
                     mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                 end
 				
