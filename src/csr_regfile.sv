@@ -401,7 +401,7 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
                     end else begin
-                        csr_rdata = vsip_q;
+                        csr_rdata = mip_q & hideleg_q;
                     end
                 end	       
 				               
@@ -409,7 +409,7 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
                     end else begin
-                        csr_rdata = vsie_q;
+                        csr_rdata = mie_q & hideleg_q;
                     end
                 end	       
 				               
@@ -866,7 +866,9 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        vsip_d = csr_wdata;
+                        // only the supervisor software interrupt is write-able, iff delegated
+                        mask = riscv::MIP_VSSIP & hideleg_q;
+                        miq_d = (mip_q & ~mask) | (csr_wdata & mask);
                     end
                 end
 
@@ -874,7 +876,7 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        vsie_d = csr_wdata;
+                        mie_d = (mie_q & ~hideleg_q) | (csr_wdata & hideleg_q);
                     end
                 end
 
