@@ -19,70 +19,74 @@ module csr_regfile #(
     parameter int          AsidWidth       = 1,
     parameter int unsigned NrCommitPorts   = 2
 ) (
-    input  logic                  clk_i,                      // Clock
-    input  logic                  rst_ni,                     // Asynchronous reset active low
-    input  logic                  time_irq_i,                 // Timer threw a interrupt
+    input  logic                  clk_i,                       // Clock
+    input  logic                  rst_ni,                      // Asynchronous reset active low
+    input  logic                  time_irq_i,                  // Timer threw a interrupt
     // send a flush request out if a CSR with a side effect has changed (e.g. written)
     output logic                  flush_o,
-    output logic                  halt_csr_o,                 // halt requested
+    output logic                  halt_csr_o,                  // halt requested
     // commit acknowledge
     input  scoreboard_entry_t [NrCommitPorts-1:0] commit_instr_i, // the instruction we want to commit
     input  logic [NrCommitPorts-1:0]              commit_ack_i,   // Commit acknowledged a instruction -> increase instret CSR
     // Core and Cluster ID
-    input  logic  [63:0]          boot_addr_i,                // Address from which to start booting, mtvec is set to the same address
-    input  logic  [63:0]          hart_id_i,                  // Hart id in a multicore environment (reflected in a CSR)
+    input  logic  [63:0]          boot_addr_i,                 // Address from which to start booting, mtvec is set to the same address
+    input  logic  [63:0]          hart_id_i,                   // Hart id in a multicore environment (reflected in a CSR)
     // we are taking an exception
-    input exception_t             ex_i,                       // We've got an exception from the commit stage, take it
+    input exception_t             ex_i,                        // We've got an exception from the commit stage, take it
 
-    input  fu_op                  csr_op_i,                   // Operation to perform on the CSR file
-    input  logic  [11:0]          csr_addr_i,                 // Address of the register to read/write
-    input  logic  [63:0]          csr_wdata_i,                // Write data in
-    output logic  [63:0]          csr_rdata_o,                // Read data out
-    input  logic                  dirty_fp_state_i,           // Mark the FP sate as dirty
-    input  logic                  csr_write_fflags_i,         // Write fflags register e.g.: we are retiring a floating point instruction
-    input  logic  [riscv::VLEN-1:0]  pc_i,                    // PC of instruction accessing the CSR
-    output exception_t            csr_exception_o,            // attempts to access a CSR without appropriate privilege
-                                                              // level or to write  a read-only register also
-                                                              // raises illegal instruction exceptions.
+    input  fu_op                  csr_op_i,                    // Operation to perform on the CSR file
+    input  logic  [11:0]          csr_addr_i,                  // Address of the register to read/write
+    input  logic  [63:0]          csr_wdata_i,                 // Write data in
+    output logic  [63:0]          csr_rdata_o,                 // Read data out
+    input  logic                  dirty_fp_state_i,            // Mark the FP sate as dirty
+    input  logic                  csr_write_fflags_i,          // Write fflags register e.g.: we are retiring a floating point instruction
+    input  logic  [riscv::VLEN-1:0]  pc_i,                     // PC of instruction accessing the CSR
+    output exception_t            csr_exception_o,             // attempts to access a CSR without appropriate privilege
+                                                               // level or to write  a read-only register also
+                                                               // raises illegal instruction exceptions.
     // Interrupts/Exceptions
-    output logic  [riscv::VLEN-1:0] epc_o,                    // Output the exception PC to PC Gen, the correct CSR (mepc, sepc) is set accordingly
-    output logic                  eret_o,                     // Return from exception, set the PC of epc_o
-    output logic  [riscv::VLEN-1:0] trap_vector_base_o,       // Output base of exception vector, correct CSR is output (mtvec, stvec)
-    output riscv::priv_lvl_t      priv_lvl_o,                 // Current privilege level the CPU is in
+    output logic  [riscv::VLEN-1:0] epc_o,                     // Output the exception PC to PC Gen, the correct CSR (mepc, sepc) is set accordingly
+    output logic                  eret_o,                      // Return from exception, set the PC of epc_o
+    output logic  [riscv::VLEN-1:0] trap_vector_base_o,        // Output base of exception vector, correct CSR is output (mtvec, stvec)
+    output riscv::priv_lvl_t      priv_lvl_o,                  // Current privilege level the CPU is in
     // FPU
-    output riscv::xs_t            fs_o,                       // Floating point extension status
-    output logic [4:0]            fflags_o,                   // Floating-Point Accured Exceptions
-    output logic [2:0]            frm_o,                      // Floating-Point Dynamic Rounding Mode
-    output logic [6:0]            fprec_o,                    // Floating-Point Precision Control
+    output riscv::xs_t            fs_o,                        // Floating point extension status
+    output logic [4:0]            fflags_o,                    // Floating-Point Accured Exceptions
+    output logic [2:0]            frm_o,                       // Floating-Point Dynamic Rounding Mode
+    output logic [6:0]            fprec_o,                     // Floating-Point Precision Control
     // Decoder
-    output irq_ctrl_t             irq_ctrl_o,                 // interrupt management to id stage
+    output irq_ctrl_t             irq_ctrl_o,                  // interrupt management to id stage
     // MMU
-    output logic                  en_translation_o,           // enable VA translation
-    output logic                  en_ld_st_translation_o,     // enable VA translation for load and stores
-    output riscv::priv_lvl_t      ld_st_priv_lvl_o,           // Privilege level at which load and stores should happen
+    output logic                  en_translation_o,            // enable VA translation
+    output logic                  en_ld_st_translation_o,      // enable VA translation for load and stores
+    output riscv::priv_lvl_t      ld_st_priv_lvl_o,            // Privilege level at which load and stores should happen
     output logic                  sum_o,
     output logic                  mxr_o,
     output logic [43:0]           satp_ppn_o,
     output logic [AsidWidth-1:0] asid_o,
     // external interrupts
-    input  logic [1:0]            irq_i,                      // external interrupt in
-    input  logic                  ipi_i,                      // inter processor interrupt -> connected to machine mode sw
-    input  logic                  debug_req_i,                // debug request in
+    input  logic [1:0]            irq_i,                       // external interrupt in
+    input  logic                  ipi_i,                       // inter processor interrupt -> connected to machine mode sw
+    input  logic                  debug_req_i,                 // debug request in
     output logic                  set_debug_pc_o,
     // Virtualization Support
-    output logic                  tvm_o,                      // trap virtual memory
-    output logic                  tw_o,                       // timeout wait
-    output logic                  tsr_o,                      // trap sret
-	output logic                  hu_o,                       // Hypervisor User mode	
-    output logic                  debug_mode_o,               // we are in debug mode -> that will change some decoding
-    output logic                  single_step_o,              // we are in single-step mode
+	output logic                  virt_mode_o,                 // current virtualization mode
+    output logic                  tvm_o,                       // trap virtual memory
+    output logic                  tw_o,                        // timeout wait
+    output logic                  tsr_o,                       // trap sret
+    output logic                  vtvm_o,                      // trap virtual memory
+    output logic                  vtw_o,                       // timeout wait
+    output logic                  vtsr_o,                      // trap sret	
+    output logic                  hu_o,                        // Hypervisor User mode	
+    output logic                  debug_mode_o,                // we are in debug mode -> that will change some decoding
+    output logic                  single_step_o,               // we are in single-step mode
     // Caches
-    output logic                  icache_en_o,                // L1 ICache Enable
-    output logic                  dcache_en_o,                // L1 DCache Enable
+    output logic                  icache_en_o,                 // L1 ICache Enable
+    output logic                  dcache_en_o,                 // L1 DCache Enable
     // Performance Counter
-    output logic  [4:0]           perf_addr_o,                // read/write address to performance counter module (up to 29 aux counters possible in riscv encoding.h)
-    output logic  [63:0]          perf_data_o,                // write data to performance counter module
-    input  logic  [63:0]          perf_data_i,                // read data from performance counter module
+    output logic  [4:0]           perf_addr_o,                 // read/write address to performance counter module (up to 29 aux counters possible in riscv encoding.h)
+    output logic  [63:0]          perf_data_o,                 // write data to performance counter module
+    input  logic  [63:0]          perf_data_i,                 // read data from performance counter module
     output logic                  perf_we_o
 );
     // internal signal to keep track of access exceptions
@@ -90,7 +94,7 @@ module csr_regfile #(
     logic        csr_we, csr_read;
     logic [63:0] csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
-	logic virtualization_mode, trap_virt_lvl;
+	logic virtualization_mode, trap_virt_mode;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -102,10 +106,10 @@ module csr_regfile #(
     riscv::status_rv64_t       mstatus_q,   mstatus_d;
     riscv::satp_t              satp_q,      satp_d;
 	// new HS & VS Mode CSRs
-	riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
+    riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
     riscv::status_vs_rv64_t    vsstatus_q,  vsstatus_d;
-	riscv::hgatp_t			   hgatp_q,     hgatp_d;
-	riscv::satp_t			   vsatp_q,     vsatp_d;
+    riscv::hgatp_t			   hgatp_q,     hgatp_d;
+    riscv::satp_t			   vsatp_q,     vsatp_d;
 	
     riscv::dcsr_t              dcsr_q,      dcsr_d;
     riscv::csr_t  csr_addr;
@@ -146,24 +150,24 @@ module csr_regfile #(
     riscv::fcsr_t fcsr_q, fcsr_d;
 	
 
-	logic [63:0] hedeleg_q,    hedeleg_d;
-	logic [63:0] hideleg_q,    hideleg_d;
-	logic [63:0] hvip_q,	   hvip_d;
-	logic [63:0] hip_q,        hip_d;
-	logic [63:0] hie_q,        hie_d;
-	logic [63:0] hgeip_q,      hgeip_d;
-	logic [63:0] hgeie_q,      hgeie_d;
-	logic [63:0] hcounteren_q, hcounteren_d;
-	logic [63:0] htval_q,      htval_d;
-	logic [63:0] htinst_q,     htinst_d;
+    logic [63:0] hedeleg_q,    hedeleg_d;
+    logic [63:0] hideleg_q,    hideleg_d;
+    logic [63:0] hvip_q,	   hvip_d;
+    logic [63:0] hip_q,        hip_d;
+    logic [63:0] hie_q,        hie_d;
+    logic [63:0] hgeip_q,      hgeip_d;
+    logic [63:0] hgeie_q,      hgeie_d;
+    logic [63:0] hcounteren_q, hcounteren_d;
+    logic [63:0] htval_q,      htval_d;
+    logic [63:0] htinst_q,     htinst_d;
 	
-	logic [63:0] vsip_q,       vsip_d;
-	logic [63:0] vsie_q,       vsie_d;
-	logic [63:0] vstvec_q,     vstvec_d;
-	logic [63:0] vsscratch_q,  vsscratch_d;
-	logic [63:0] vsepc_q,      vsepc_d;
-	logic [63:0] vscause_q,    vscause_d;
-	logic [63:0] vstval_q,     vstval_d;	
+    logic [63:0] vsip_q,       vsip_d;
+    logic [63:0] vsie_q,       vsie_d;
+    logic [63:0] vstvec_q,     vstvec_d;
+    logic [63:0] vsscratch_q,  vsscratch_d;
+    logic [63:0] vsepc_q,      vsepc_d;
+    logic [63:0] vscause_q,    vscause_d;
+    logic [63:0] vstval_q,     vstval_d;	
 
 
 	
@@ -185,7 +189,7 @@ module csr_regfile #(
 			virtualization_mode = 1'b0;
         end
 			
-	end
+    end
 
     // ----------------
     // CSR Read logic
@@ -278,7 +282,8 @@ module csr_regfile #(
                 riscv::CSR_MINSTRET:           csr_rdata = instret_q;
                 riscv::CSR_MINST:;
                 riscv::CSR_MTVAL2:;
-				// Hypervisor CSRs 				
+
+                // Hypervisor CSRs 				
                 riscv::CSR_HSSTATUS: begin
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
@@ -372,18 +377,18 @@ module csr_regfile #(
                         read_access_exception = 1'b1;
 						
                     else begin					
-					if ( (virtualization_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
+                    if ( (virtualization_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = hgatp_q;
                     end
-					
+                    
                     end // !ISA_CODE[7] ends    
                     
                 end					
 				              	
 				
-				// Virtual Supervisor CSRs
+                // Virtual Supervisor CSRs
                 riscv::CSR_VSSTATUS: begin
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
@@ -758,8 +763,72 @@ module csr_regfile #(
                 end
 				
 				// new CSRs
-				riscv::CSR_MINST:;
-				riscv::CSR_MTVAL2:;	
+                riscv::CSR_MINST:;
+                riscv::CSR_MTVAL2:;	
+
+                riscv::CSR_HSSTATUS: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hstatus_d = csr_wdata;
+                    end
+                end	
+
+                riscv::CSR_HEDELEG: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hedeleg_d = csr_wdata;
+                    end
+                end	
+				
+                riscv::CSR_HIDELEG: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hideleg_d = csr_wdata;
+                    end
+                end					
+				
+                riscv::CSR_HVIP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hvip_d = csr_wdata;
+                    end
+                end		
+
+                riscv::CSR_HIP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hip_d = csr_wdata;
+                    end
+                end					
+				
+                riscv::CSR_HIE: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hie_d = csr_wdata;
+                    end
+                end					
+				
+                riscv::CSR_HGEIP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hgeip_d = csr_wdata;
+                    end
+                end					
+				
+                riscv::CSR_HGEIE: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hgeie_d = csr_wdata;
+                    end
+                end					
 				
                 riscv::CSR_HCOUNTEREN: begin
                     if (!ISA_CODE[7]) begin
@@ -776,6 +845,14 @@ module csr_regfile #(
                         htval_d = csr_wdata;
                     end
                 end	
+				
+                riscv::CSR_HGATP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        hgatp_d = csr_wdata;
+                    end
+                end					
 
                 riscv::CSR_VSSTATUS: begin
                     if (!ISA_CODE[7]) begin
@@ -946,71 +1023,71 @@ module csr_regfile #(
                 mstatus_d.spp  = priv_lvl_q[0];
 
                 // set scause or vscause depending upon virtualization mode
-				if (virtualization_mode) begin
-				vscause_d      = ex_i.cause;
-				end else begin				
-				scause_d       = ex_i.cause;
-				end
+                if (virtualization_mode) begin
+                vscause_d      = ex_i.cause;
+                end else begin				
+                scause_d       = ex_i.cause;
+                end
 				
                 // set sepc or vsepc depending upon virtualization mode
-				if (virtualization_mode) begin
+                if (virtualization_mode) begin
                 vsepc_d        = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-				end else begin				
-				sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-				end                
+                end else begin				
+                sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
+                end                
 
-				// set stval or vstval depending upon virtualization mode
-				// INCOMPLETE: how to handle update to htval?
-				htval_d = 64'b0;
+                // set stval or vstval depending upon virtualization mode
+                // INCOMPLETE: how to handle update to htval?
+                htval_d = 64'b0;
 				
-				if (virtualization_mode) begin		
-					vstval_d   = (ariane_pkg::ZERO_TVAL
-								  && (ex_i.cause inside {
-									riscv::ILLEGAL_INSTR,
-									riscv::BREAKPOINT,
-									riscv::ENV_CALL_UMODE,
-									riscv::ENV_CALL_SMODE,
-									riscv::ENV_CALL_MMODE
-								  } || ex_i.cause[63])) ? '0 : ex_i.tval;
+                if (virtualization_mode) begin		
+                    vstval_d   = (ariane_pkg::ZERO_TVAL
+                                  && (ex_i.cause inside {
+                                    riscv::ILLEGAL_INSTR,
+                                    riscv::BREAKPOINT,
+                                    riscv::ENV_CALL_UMODE,
+                                    riscv::ENV_CALL_SMODE,
+                                    riscv::ENV_CALL_MMODE
+                                    } || ex_i.cause[63])) ? '0 : ex_i.tval;
 					
-				end else begin	
-				    stval_d    = (ariane_pkg::ZERO_TVAL
-								  && (ex_i.cause inside {
-									riscv::ILLEGAL_INSTR,
-									riscv::BREAKPOINT,
-									riscv::ENV_CALL_UMODE,
-									riscv::ENV_CALL_SMODE,
-									riscv::ENV_CALL_MMODE
-								  } || ex_i.cause[63])) ? '0 : ex_i.tval;
-				end
+                end else begin	
+                    stval_d    = (ariane_pkg::ZERO_TVAL
+                                    && (ex_i.cause inside {
+                                    riscv::ILLEGAL_INSTR,
+                                    riscv::BREAKPOINT,
+                                    riscv::ENV_CALL_UMODE,
+                                    riscv::ENV_CALL_SMODE,
+                                    riscv::ENV_CALL_MMODE
+                                    } || ex_i.cause[63])) ? '0 : ex_i.tval;
+                end
 				
-				htinst_d = 64'b0;
+                htinst_d = 64'b0;
 				
-				// VS and HS-Mode cases								  
-				if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_S) begin
-					if(virtualization_mode == 1'b1) begin
-						hstatus_d.spv = 1'b1;
-						hstatus_d.spp = 1'b1;
-						vsstatus_d.spv = 1'b1;
-						virtualization_mode = 1'b1;
-					end else begin
-						hstatus_d.spv = 1'b0;
-						hstatus_d.spp = 1'b1;
-						virtualization_mode = 1'b0;
-					end			
-				end 
+                // VS and HS-Mode cases								  
+                if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_S) begin
+                    if(virtualization_mode == 1'b1) begin
+                        hstatus_d.spv = 1'b1;
+                        hstatus_d.spp = 1'b1;
+                        vsstatus_d.spv = 1'b1;
+                        virtualization_mode = 1'b1;
+                end else begin
+                        hstatus_d.spv = 1'b0;
+                        hstatus_d.spp = 1'b1;
+                        virtualization_mode = 1'b0;
+                    end			
+                end 
 
-				// VU and U-Mode cases
-				if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_U) begin
-					if (virtualization_mode == 1'b1) begin
-						hstatus_d.spv = 1'b1;
-						hstatus_d.spp = 1'b0;
-						vsstatus_d.spp = 1'b0;
-					end else begin
-						hstatus_d.spv = 1'b0;
-						hstatus_d.spp = 1'b0;					
-					end	
-				end
+                // VU and U-Mode cases
+                if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_U) begin
+                    if (virtualization_mode == 1'b1) begin
+                        hstatus_d.spv = 1'b1;
+                        hstatus_d.spp = 1'b0;
+                        vsstatus_d.spp = 1'b0;
+                    end else begin
+                        hstatus_d.spv = 1'b0;
+                        hstatus_d.spp = 1'b0;					
+                    end	
+                end
 				
             // trap to machine mode
             end else begin
@@ -1019,16 +1096,16 @@ module csr_regfile #(
                 mstatus_d.mpie = mstatus_q.mie;
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
-								
-				virtualization_mode = 1'b0;
-				// check current priv. level and update mstatus.MPV
-				if (ISA_CODE[7]) begin
-					if (priv_lvl_q == riscv::PRIV_LVL_M) begin
-						mstatus_d.mpv  = 1'b0;
-					end else begin
+    
+                virtualization_mode = 1'b0;
+                // check current priv. level and update mstatus.MPV
+                if (ISA_CODE[7]) begin
+                    if (priv_lvl_q == riscv::PRIV_LVL_M) begin
+                        mstatus_d.mpv  = 1'b0;
+                    end else begin
 						mstatus_d.mpv  = virtualization_mode;
-					end
-				end
+                    end
+                end
                 mcause_d       = ex_i.cause;
                 // set epc
                 mepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
@@ -1041,7 +1118,7 @@ module csr_regfile #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[63])) ? '0 : ex_i.tval;
-								  
+                     
                 mstatus_d.gva  = (ariane_pkg::ZERO_TVAL
                                   && (ex_i.cause inside {
                                     riscv::ILLEGAL_INSTR,
