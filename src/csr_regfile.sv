@@ -716,11 +716,12 @@ module csr_regfile #(
                 // we do not support user interrupt delegation
                 riscv::CSR_MIDELEG: begin
                     mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP;
-                    mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask);
 
 					if(ISA_CODE[7]) begin
-					mideleg_d = mideleg_d | { 53'b0, 1'b1, 3'b0, 1'b1, 3'b0, 1'b1, 2'b0} ;
+                    mask = riscv::MIP_SSIP | riscv::MIP_STIP | riscv::MIP_SEIP | riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP ;					
 					end
+					
+                    mideleg_d = (mideleg_q & ~mask) | (csr_wdata & mask);
 					
                 end
                 // mask the register so that unsupported interrupts can never be set
@@ -765,6 +766,30 @@ module csr_regfile #(
                         htval_d = csr_wdata;
                     end
                 end	
+
+                riscv::CSR_VSSTATUS: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vsstatus_d = csr_wdata;
+                    end
+                end
+
+                riscv::CSR_VSIP: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vsip_d = csr_wdata;
+                    end
+                end
+
+                riscv::CSR_VSIE: begin
+                    if (!ISA_CODE[7]) begin
+                        update_access_exception = 1'b1;
+                    end else begin
+                        vsie_d = csr_wdata;
+                    end
+                end
 
                 riscv::CSR_VSTVEC: begin
                     if (!ISA_CODE[7]) begin

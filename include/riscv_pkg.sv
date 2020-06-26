@@ -358,25 +358,34 @@ package riscv;
     localparam logic [63:0] DEBUG_REQUEST            = 24; // Debug request
 
     localparam int unsigned IRQ_S_SOFT  = 1;
+    localparam int unsigned IRQ_VS_SOFT  = 2;
     localparam int unsigned IRQ_M_SOFT  = 3;
     localparam int unsigned IRQ_S_TIMER = 5;
+    localparam int unsigned IRQ_VS_TIMER = 6;
     localparam int unsigned IRQ_M_TIMER = 7;
     localparam int unsigned IRQ_S_EXT   = 9;
+    localparam int unsigned IRQ_VS_EXT   = 10;
     localparam int unsigned IRQ_M_EXT   = 11;
 
-    localparam logic [63:0] MIP_SSIP = 1 << IRQ_S_SOFT;
-    localparam logic [63:0] MIP_MSIP = 1 << IRQ_M_SOFT;
-    localparam logic [63:0] MIP_STIP = 1 << IRQ_S_TIMER;
-    localparam logic [63:0] MIP_MTIP = 1 << IRQ_M_TIMER;
-    localparam logic [63:0] MIP_SEIP = 1 << IRQ_S_EXT;
-    localparam logic [63:0] MIP_MEIP = 1 << IRQ_M_EXT;
+    localparam logic [63:0] MIP_SSIP  =  1 << IRQ_S_SOFT;
+    localparam logic [63:0] MIP_VSSIP =  1 << IRQ_VS_SOFT;
+    localparam logic [63:0] MIP_MSIP  =  1 << IRQ_M_SOFT;
+    localparam logic [63:0] MIP_STIP  =  1 << IRQ_S_TIMER;
+    localparam logic [63:0] MIP_VSTIP =  1 << IRQ_VS_TIMER;
+    localparam logic [63:0] MIP_MTIP  =  1 << IRQ_M_TIMER;
+    localparam logic [63:0] MIP_SEIP  =  1 << IRQ_S_EXT;
+    localparam logic [63:0] MIP_VSEIP =  1 << IRQ_VS_EXT;
+    localparam logic [63:0] MIP_MEIP  =  1 << IRQ_M_EXT;
 
-    localparam logic [63:0] S_SW_INTERRUPT    = (1 << 63) | IRQ_S_SOFT;
-    localparam logic [63:0] M_SW_INTERRUPT    = (1 << 63) | IRQ_M_SOFT;
-    localparam logic [63:0] S_TIMER_INTERRUPT = (1 << 63) | IRQ_S_TIMER;
-    localparam logic [63:0] M_TIMER_INTERRUPT = (1 << 63) | IRQ_M_TIMER;
-    localparam logic [63:0] S_EXT_INTERRUPT   = (1 << 63) | IRQ_S_EXT;
-    localparam logic [63:0] M_EXT_INTERRUPT   = (1 << 63) | IRQ_M_EXT;
+    localparam logic [63:0] S_SW_INTERRUPT     = (1 << 63) | IRQ_S_SOFT;
+    localparam logic [63:0] VS_SW_INTERRUPT    = (1 << 63) | IRQ_VS_SOFT;
+    localparam logic [63:0] M_SW_INTERRUPT     = (1 << 63) | IRQ_M_SOFT;
+    localparam logic [63:0] S_TIMER_INTERRUPT  = (1 << 63) | IRQ_S_TIMER;
+    localparam logic [63:0] VS_TIMER_INTERRUPT = (1 << 63) | IRQ_VS_TIMER;
+    localparam logic [63:0] M_TIMER_INTERRUPT  = (1 << 63) | IRQ_M_TIMER;	
+    localparam logic [63:0] S_EXT_INTERRUPT    = (1 << 63) | IRQ_S_EXT;
+    localparam logic [63:0] VS_EXT_INTERRUPT   = (1 << 63) | IRQ_VS_EXT;
+    localparam logic [63:0] M_EXT_INTERRUPT    = (1 << 63) | IRQ_M_EXT;
 
     // -----
     // CSRs
