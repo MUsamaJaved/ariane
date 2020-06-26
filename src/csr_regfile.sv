@@ -70,7 +70,7 @@ module csr_regfile #(
     input  logic                  debug_req_i,                 // debug request in
     output logic                  set_debug_pc_o,
     // Virtualization Support
-	output logic                  virt_mode_o,                 // current virtualization mode
+    output logic                  virt_mode_o,                 // current virtualization mode
     output logic                  tvm_o,                       // trap virtual memory
     output logic                  tw_o,                        // timeout wait
     output logic                  tsr_o,                       // trap sret
@@ -94,7 +94,7 @@ module csr_regfile #(
     logic        csr_we, csr_read;
     logic [63:0] csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
-	logic virtualization_mode, trap_virt_mode;
+    logic virtualization_mode, trap_virt_mode;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -105,7 +105,7 @@ module csr_regfile #(
     logic  dirty_fp_state_csr;
     riscv::status_rv64_t       mstatus_q,   mstatus_d;
     riscv::satp_t              satp_q,      satp_d;
-	// new HS & VS Mode CSRs
+    // new HS & VS Mode CSRs
     riscv::status_hs_rv64_t    hstatus_q,   hstatus_d;
     riscv::status_vs_rv64_t    vsstatus_q,  vsstatus_d;
     riscv::hgatp_t			   hgatp_q,     hgatp_d;
@@ -1103,7 +1103,7 @@ module csr_regfile #(
                     if (priv_lvl_q == riscv::PRIV_LVL_M) begin
                         mstatus_d.mpv  = 1'b0;
                     end else begin
-						mstatus_d.mpv  = virtualization_mode;
+                        mstatus_d.mpv  = virtualization_mode;
                     end
                 end
                 mcause_d       = ex_i.cause;
