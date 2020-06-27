@@ -312,7 +312,8 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
                     end else begin
-                        csr_rdata = hvip_q;
+                        mask = (riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP) & mideleg_q;
+                        csr_rdata = mip_q & mask;
                     end
                 end
 				
@@ -320,7 +321,8 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         read_access_exception = 1'b1;
                     end else begin
-                        csr_rdata = hip_q;
+                        mask = (riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP) & mideleg_q;
+                        csr_rdata = mip_q & mask;
                     end
                 end   
 				
@@ -778,7 +780,14 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hedeleg_d = csr_wdata;
+                        mask = (1 << riscv::INSTR_ADDR_MISALIGNED) |
+                               (1 << riscv::BREAKPOINT) |
+                               (1 << riscv::ENV_CALL_UMODE) |
+                               (1 << riscv::INSTR_PAGE_FAULT) |
+                               (1 << riscv::LOAD_PAGE_FAULT) |
+                               (1 << riscv::STORE_PAGE_FAULT);
+                               
+                        hedeleg_d = (hedeleg_q & ~mask) | (csr_wdata & mask);
                     end
                 end	
 				
@@ -786,7 +795,8 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hideleg_d = csr_wdata;
+                        mask = (riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP);                    
+                        hideleg_d = (hideleg_q & ~mask) | ( csr_wdata &(mideleg_q & mask) )
                     end
                 end					
 				
@@ -794,7 +804,8 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hvip_d = csr_wdata;
+                        mask = (riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP) & hideleg_q;
+                        mip_d = (mip_q & ~mask) | (csr_wdata & mask);
                     end
                 end		
 
@@ -802,7 +813,8 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hip_d = csr_wdata;
+                        mask = (riscv::MIP_VSSIP | riscv::MIP_VSTIP | riscv::MIP_VSEIP) & mideleg_q;
+                        mip_q = (mip_q & ~mask) | (csr_wdata & mask);
                     end
                 end					
 				
