@@ -152,7 +152,7 @@ module csr_regfile #(
 
     logic [63:0] hedeleg_q,    hedeleg_d;
     logic [63:0] hideleg_q,    hideleg_d;
-    logic [63:0] hvip_q,	   hvip_d;
+    logic [63:0] hvip_q,       hvip_d;
     logic [63:0] hip_q,        hip_d;
     logic [63:0] hie_q,        hie_d;
     logic [63:0] hgeip_q,      hgeip_d;
@@ -772,7 +772,10 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hstatus_d = csr_wdata;
+                        hstatus_d       = csr_wdata;
+                        hstatus_d.vgein = 6'b0;
+                        // this register has side-effects on other registers, flush the pipeline
+                        flush_o         = 1'b1;                        
                     end
                 end	
 
@@ -984,6 +987,11 @@ module csr_regfile #(
 
         mstatus_d.sxl  = riscv::XLEN_64;
         mstatus_d.uxl  = riscv::XLEN_64;
+        
+        if (ISA_CODE[7]) begin
+            hstatus_d.vsxl  = riscv::XLEN_64;
+            hstatus_d.vbse  = 1'b0; // little-endian
+        end	        
 
         // mark the floating point extension register as dirty
         if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i)) begin
