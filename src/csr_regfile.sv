@@ -63,7 +63,7 @@ module csr_regfile #(
     output logic                  sum_o,
     output logic                  mxr_o,
     output logic [43:0]           satp_ppn_o,
-    output logic [AsidWidth-1:0] asid_o,
+    output logic [AsidWidth-1:0]  asid_o,
     // external interrupts
     input  logic [1:0]            irq_i,                       // external interrupt in
     input  logic                  ipi_i,                       // inter processor interrupt -> connected to machine mode sw
@@ -1367,8 +1367,18 @@ module csr_regfile #(
             if (csr_addr_i inside {[riscv::CSR_CYCLE:riscv::CSR_HPM_COUNTER_31]}) begin
                 unique case (csr_addr.csr_decode.priv_lvl)
                     riscv::PRIV_LVL_M: privilege_violation = 1'b0;
-                    riscv::PRIV_LVL_S: privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
-                    riscv::PRIV_LVL_U: privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                    riscv::PRIV_LVL_S: 
+                                        if (virtualization_mode==1'b0) begin
+                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
+                                        end else begin
+                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
+                                        end
+                    riscv::PRIV_LVL_U: 
+                                        if (virtualization_mode==1'b0) begin
+                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                                        end else begin
+                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                                        end
                 endcase
             end
         end
