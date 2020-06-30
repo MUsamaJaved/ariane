@@ -152,8 +152,8 @@ package riscv;
 
     typedef struct packed {
         logic [3:0]  mode;
-        logic [1:0]  vmid;		
-        logic [13:0] asid;
+        logic [1:0]  warl;		
+        logic [13:0] vmid;
         logic [43:0] ppn;
     } hgatp_t;	
 

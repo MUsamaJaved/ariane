@@ -64,6 +64,8 @@ module csr_regfile #(
     output logic                  mxr_o,
     output logic [43:0]           satp_ppn_o,
     output logic [AsidWidth-1:0]  asid_o,
+    output logic [43:0]           hgatp_ppn_o,
+    output logic [13:0]  vmid_o,    
     // external interrupts
     input  logic [1:0]            irq_i,                       // external interrupt in
     input  logic                  ipi_i,                       // inter processor interrupt -> connected to machine mode sw
@@ -510,8 +512,10 @@ module csr_regfile #(
         automatic riscv::satp_t sapt;
         automatic logic [63:0] instret;
 
+        automatic riscv::hgatp_t hgatp;
 
         sapt = satp_q;
+        hgatp = hgatp_q;
         instret = instret_q;
 
         // --------------------
@@ -833,7 +837,7 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hgeip_d = csr_wdata;
+                        hgeip_d = 64'b0;
                     end
                 end					
 				
@@ -841,7 +845,7 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        hgeie_d = csr_wdata;
+                        hgeie_d = 64'b0;
                     end
                 end					
 				
@@ -862,12 +866,27 @@ module csr_regfile #(
                 end	
 				
                 riscv::CSR_HGATP: begin
-                    if (!ISA_CODE[7]) begin
-                        update_access_exception = 1'b1;
+
+                    if (!ISA_CODE[7]) 
+                        read_access_exception = 1'b1;
+						
+                    else begin		
+                    
+                    if ( (virtualization_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
+                        read_access_exception = 1'b1;
                     end else begin
-                        hgatp_d = csr_wdata;
+                        hgatp       = riscv::hgatp_t'(csr_wdata);
+                                                                    
+                        hgatp.ppn   =  hgatp.ppn & {42'b1, 2'b0};
+                        hgatp.vmid  = 14'b0;
+                        if (hgatp.mode == MODE_OFF || hgatp.mode == MODE_SV39) hgatp_d = hgatp;
                     end
-                end					
+                    
+                    end // !ISA_CODE[7] ends  
+                    
+                    flush_o = 1'b1;
+
+                end	// CSR_HGATP ends				
 
                 riscv::CSR_VSSTATUS: begin
                     if (!ISA_CODE[7]) begin
@@ -939,7 +958,12 @@ module csr_regfile #(
                     if (!ISA_CODE[7]) begin
                         update_access_exception = 1'b1;
                     end else begin
-                        vsatp_d = csr_wdata;
+                        vsatp_d       = csr_wdata;
+                        vsatp_d.asid  = vsatp_d.asid & {{(16-AsidWidth){1'b0}}, {AsidWidth{1'b1}}};
+                        if (vsatp_d.mode == MODE_OFF || vsapt.mode == MODE_SV39) begin
+                            vsatp_d = csr_wdata;
+                        end
+                        flush_o       = 1'b1;
                     end
                 end
 				
