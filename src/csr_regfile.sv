@@ -98,7 +98,7 @@ module csr_regfile #(
     logic        csr_we, csr_read;
     logic [63:0] csr_wdata, csr_rdata;
     riscv::priv_lvl_t   trap_to_priv_lvl;
-    logic virt_mode, trap_to_virt_mode;
+    logic        virt_mode_d, virt_mode_q, trap_to_virt_mode;
     // register for enabling load store address translation, this is critical, hence the register
     logic        en_ld_st_translation_d, en_ld_st_translation_q;
     logic  mprv;
@@ -182,20 +182,6 @@ module csr_regfile #(
     assign fs_o = mstatus_q.fs;
 
     // ----------------
-    // Virtualization Mode Check
-    // ----------------
-    always_comb begin : virt_mode_process
-        virt_mode = 1'b0;
-        
-        if (ISA_CODE[7]) begin
-			virt_mode = 1'b1;
-        end else begin
-			virt_mode = 1'b0;
-        end
-			
-    end
-
-    // ----------------
     // CSR Read logic
     // ----------------
     always_comb begin : csr_read_process
@@ -207,21 +193,21 @@ module csr_regfile #(
         if (csr_read) begin
             unique case (csr_addr.address)
                 riscv::CSR_FFLAGS: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {59'b0, fcsr_q.fflags};
                     end
                 end
                 riscv::CSR_FRM: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {61'b0, fcsr_q.frm};
                     end
                 end
                 riscv::CSR_FCSR: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {56'b0, fcsr_q.frm, fcsr_q.fflags};
@@ -229,7 +215,7 @@ module csr_regfile #(
                 end
                 // non-standard extension
                 riscv::CSR_FTRAN: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = {57'b0, fcsr_q.fprec};
@@ -383,7 +369,7 @@ module csr_regfile #(
                         read_access_exception = 1'b1;
 						
                     else begin					
-                    if ( (virt_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
+                    if ( (virt_mode_q==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
                         read_access_exception = 1'b1;
                     end else begin
                         csr_rdata = hgatp_q;
@@ -548,6 +534,7 @@ module csr_regfile #(
         fcsr_d                  = fcsr_q;
 
         priv_lvl_d              = priv_lvl_q;
+        virt_mode_d             = virt_mode_q;
         debug_mode_d            = debug_mode_q;
         dcsr_d                  = dcsr_q;
         dpc_d                   = dpc_q;
@@ -595,7 +582,7 @@ module csr_regfile #(
             unique case (csr_addr.address)
                 // Floating-Point
                 riscv::CSR_FFLAGS: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -605,7 +592,7 @@ module csr_regfile #(
                     end
                 end
                 riscv::CSR_FRM: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -615,7 +602,7 @@ module csr_regfile #(
                     end
                 end
                 riscv::CSR_FCSR: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -625,7 +612,7 @@ module csr_regfile #(
                     end
                 end
                 riscv::CSR_FTRAN: begin
-                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode && ISA_CODE[7]) ) begin
+                    if (mstatus_q.fs == riscv::Off || (vsstatus_q.fs == riscv::Off && virt_mode_q && ISA_CODE[7]) ) begin
                         update_access_exception = 1'b1;
                     end else begin
                         dirty_fp_state_csr = 1'b1;
@@ -875,7 +862,7 @@ module csr_regfile #(
 						
                     else begin		
                     
-                    if ( (virt_mode==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
+                    if ( (virt_mode_q==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
                         read_access_exception = 1'b1;
                     end else begin
                         hgatp       = riscv::hgatp_t'(csr_wdata);
@@ -1032,14 +1019,14 @@ module csr_regfile #(
             mstatus_d.fs = riscv::Dirty;
         end
 
-        if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i) && (virt_mode && ISA_CODE[7]) ) begin
+        if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i) && (virt_mode_q && ISA_CODE[7]) ) begin
             vsstatus_d.fs = riscv::Dirty;
         end        
                  
         // hardwired extension registers
         mstatus_d.sd   = (mstatus_q.xs == riscv::Dirty) | (mstatus_q.fs == riscv::Dirty);
 
-        if (virt_mode && ISA_CODE[7]) begin
+        if (virt_mode_q && ISA_CODE[7]) begin
             vsstatus_d.sd   = (vsstatus_q.xs == riscv::Dirty) | (vsstatus_q.fs == riscv::Dirty);
         end
 
@@ -1088,14 +1075,14 @@ module csr_regfile #(
                 mstatus_d.spp  = priv_lvl_q[0];
 
                 // set scause or vscause depending upon virtualization mode
-                if (virt_mode) begin
+                if (virt_mode_q) begin
                 vscause_d      = ex_i.cause;
                 end else begin				
                 scause_d       = ex_i.cause;
                 end
 				
                 // set sepc or vsepc depending upon virtualization mode
-                if (virt_mode) begin
+                if (virt_mode_q) begin
                 vsepc_d        = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
                 end else begin				
                 sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
@@ -1105,7 +1092,7 @@ module csr_regfile #(
                 // INCOMPLETE: how to handle update to htval?
                 htval_d = 64'b0;
 				
-                if (virt_mode) begin		
+                if (virt_mode_q) begin		
                     vstval_d   = (ariane_pkg::ZERO_TVAL
                                   && (ex_i.cause inside {
                                     riscv::ILLEGAL_INSTR,
@@ -1134,11 +1121,11 @@ module csr_regfile #(
                         hstatus_d.spv = 1'b1;
                         hstatus_d.spp = 1'b1;
                         vsstatus_d.spv = 1'b1;
-                        virt_mode = 1'b1;
+                        virt_mode_d = 1'b1;
                 end else begin
                         hstatus_d.spv = 1'b0;
                         hstatus_d.spp = 1'b1;
-                        virt_mode = 1'b0;
+                        virt_mode_d = 1'b0;
                     end			
                 end 
 
@@ -1162,13 +1149,14 @@ module csr_regfile #(
                 // save the previous privilege mode
                 mstatus_d.mpp  = priv_lvl_q;
     
-                virt_mode = 1'b0;
+                
                 // check current priv. level and update mstatus.MPV
                 if (ISA_CODE[7]) begin
-                    if (priv_lvl_q == riscv::PRIV_LVL_M) begin
-                        mstatus_d.mpv  = 1'b0;
+                    if (virt_mode_q) begin
+                        mstatus_d.mpv  = virt_mode_q;
+                        virt_mode_d = 1'b0;
                     end else begin
-                        mstatus_d.mpv  = virt_mode;
+                        mstatus_d.mpv  = 1'b0;
                     end
                 end
                 mcause_d       = ex_i.cause;
@@ -1317,9 +1305,9 @@ module csr_regfile #(
             mstatus_d.mpie = 1'b1;
 			
 			if(mstatus_q.mpp == riscv::PRIV_LVL_M) begin
-				virt_mode = 1'b0;
+				virt_mode_d = 1'b0;
 			end else begin
-				virt_mode = mstatus_q.mpv;
+				virt_mode_d = mstatus_q.mpv;
 			end
 			
         end
@@ -1425,13 +1413,13 @@ module csr_regfile #(
                 unique case (csr_addr.csr_decode.priv_lvl)
                     riscv::PRIV_LVL_M: privilege_violation = 1'b0;
                     riscv::PRIV_LVL_S: 
-                                        if (virt_mode==1'b0) begin
+                                        if (virt_mode_q ==1'b0) begin
                                             privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
                                         end else begin
                                             privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
                                         end
                     riscv::PRIV_LVL_U: 
-                                        if (virt_mode==1'b0) begin
+                                        if (virt_mode_q ==1'b0) begin
                                             privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
                                         end else begin
                                             privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
@@ -1487,7 +1475,7 @@ module csr_regfile #(
         trap_vector_base_o = {mtvec_q[riscv::VLEN-1:2], 2'b0};
         // output user mode stvec or vstvec_d depending upon virtualization mode
         if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
-		    if (virt_mode) begin
+		    if (virt_mode_q) begin
 				trap_vector_base_o = {vstvec_q[riscv::VLEN-1:2], 2'b0};
 			end else begin
 				trap_vector_base_o = {stvec_q[riscv::VLEN-1:2], 2'b0};
@@ -1509,7 +1497,7 @@ module csr_regfile #(
         epc_o = mepc_q[riscv::VLEN-1:0];
         // we are returning from supervisor mode, so take the sepc or vsepc dep upom virtualization mode
         if (sret) begin
-			if (virt_mode ) begin
+			if ( virt_mode_q ) begin
             epc_o = vsepc_q[riscv::VLEN-1:0];
 			end else begin
 			epc_o = sepc_q[riscv::VLEN-1:0];
@@ -1543,7 +1531,7 @@ module csr_regfile #(
 
     // in debug mode we execute with privilege level M
     assign priv_lvl_o       = (debug_mode_q) ? riscv::PRIV_LVL_M : priv_lvl_q;
-    assign virt_mode_o      = (debug_mode_q) ? 1'b0 : virt_mode;
+    assign virt_mode_o      = (debug_mode_q) ? 1'b0 : virt_mode_q;
     // FPU outputs
     assign fflags_o         = fcsr_q.fflags;
     assign frm_o            = fcsr_q.frm;
@@ -1553,7 +1541,7 @@ module csr_regfile #(
     assign asid_o           = satp_q.asid[AsidWidth-1:0];
     assign sum_o            = mstatus_q.sum;
     // we support bare memory addressing and SV39
-    assign en_translation_o = ( (ISA_CODE[7] && (!virt_mode) && satp_q.mode == 4'h8) && priv_lvl_o != riscv::PRIV_LVL_M)
+    assign en_translation_o = ( (ISA_CODE[7] && (!virt_mode_q) && satp_q.mode == 4'h8) && priv_lvl_o != riscv::PRIV_LVL_M)
                               ? 1'b1
                               : 1'b0;
     assign mxr_o            = mstatus_q.mxr;
@@ -1577,6 +1565,7 @@ module csr_regfile #(
     always_ff @(posedge clk_i or negedge rst_ni) begin
         if (~rst_ni) begin
             priv_lvl_q             <= riscv::PRIV_LVL_M;
+            virt_mode_q            <= 1'b0;
             // floating-point registers
             fcsr_q                 <= 64'b0;
             // debug signals
@@ -1619,6 +1608,7 @@ module csr_regfile #(
             wfi_q                  <= 1'b0;
         end else begin
             priv_lvl_q             <= priv_lvl_d;
+            virt_mode_q            <= virt_mode_d;
             // floating-point registers
             fcsr_q                 <= fcsr_d;
             // debug signals
