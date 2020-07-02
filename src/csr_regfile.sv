@@ -1291,18 +1291,43 @@ module csr_regfile #(
             mstatus_d.mpp  = riscv::PRIV_LVL_U;
             // set mpie to 1
             mstatus_d.mpie = 1'b1;
-			
-			if(mstatus_q.mpp == riscv::PRIV_LVL_M) begin
-				virt_mode_d = 1'b0;
-			end else begin
-				virt_mode_d = mstatus_q.mpv;
+
+            if (ISA_CODE[7]) begin
+                if(mstatus_q.mpp == riscv::PRIV_LVL_M) begin
+                    virt_mode_d    = 1'b0;
+                    mstatus_d.mpv  = 1'b0;
+                end else begin
+                    virt_mode_d    = mstatus_q.mpv;
+                    mstatus_d.mpv  = 1'b0;
+                end
 			end
-			
+            
         end
 
         if (sret) begin
             // return from exception, IF doesn't care from where we are returning
             eret_o = 1'b1;
+
+            
+            if (ISA_CODE[7]) begin
+            
+                if(virt_mode_q) begin //sret from VS mode
+                    vsstatus_d.spie  = 1'b1;
+                    vsstatus_d.spp   = 1'b0;
+                    vsstatus_d.sie   = vsstatus_q.spie;
+                    
+                end else begin        // sret from HS mode
+                    virt_mode_d     = hstatus_q.spv;
+                    hstatus_d.spv   = 1'b0;
+                    priv_lvl_d      = riscv::priv_lvl_t'({1'b0, mstatus_q.spp});
+                    mstatus_d.spp   = 1'b0;
+                    mstatus_d.sie  = mstatus_q.spie;
+                    mstatus_d.spie  = 1'b1;                    
+                    
+                end
+            
+            end else begin
+            
             // return the previous supervisor interrupt enable flag
             mstatus_d.sie  = mstatus_q.spie;
             // restore the previous privilege level
@@ -1310,7 +1335,10 @@ module csr_regfile #(
             // set spp to user mode
             mstatus_d.spp  = 1'b0;
             // set spie to 1
-            mstatus_d.spie = 1'b1;
+            mstatus_d.spie = 1'b1; 
+            
+            end
+            
         end
 
         // return from debug mode
