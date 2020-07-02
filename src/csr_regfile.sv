@@ -1049,7 +1049,8 @@ module csr_regfile #(
         // -----------------------
         // update exception CSRs
         // we got an exception update cause, pc and stval register
-        trap_to_priv_lvl = riscv::PRIV_LVL_M;
+        trap_to_priv_lvl   = riscv::PRIV_LVL_M;
+        trap_to_virt_mode  = 1'b0;
         // Exception is taken and we are not in debug mode
         // exceptions in debug mode don't update any fields
         if (!debug_mode_q && ex_i.cause != riscv::DEBUG_REQUEST && ex_i.valid) begin
@@ -1059,18 +1060,29 @@ module csr_regfile #(
             // a m-mode trap might be delegated if we are taking it in S mode
             // first figure out if this was an exception or an interrupt e.g.: look at bit 63
             // the cause register can only be 6 bits long (as we only support 64 exceptions)
+
             if ((ex_i.cause[63] && mideleg_q[ex_i.cause[5:0]]) ||
                 (~ex_i.cause[63] && medeleg_q[ex_i.cause[5:0]])) begin
                 // traps never transition from a more-privileged mode to a less privileged mode
                 // so if we are already in M mode, stay there
                 trap_to_priv_lvl = (priv_lvl_o == riscv::PRIV_LVL_M) ? riscv::PRIV_LVL_M : riscv::PRIV_LVL_S;
             end
+            
+            if ( ISA_CODE[7] && (priv_lvl_o != riscv::PRIV_LVL_M) ) begin 
 
+                if ((ex_i.cause[63] && hideleg_q[ex_i.cause[5:0]]) ||
+                    (~ex_i.cause[63] && hedeleg_q[ex_i.cause[5:0]])) begin
+                    trap_to_virt_mode = 1'b1;
+                end
+            
+            end
+
+            
             // trap to supervisor mode
             if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
 
 
-                // S-Mode (shared with HS-mode)
+                // S-Mode (shared part with HS-mode)
                 if ( trap_to_priv_lvl == 1'b0 ) begin
                     // update sstatus
                     mstatus_d.sie  = 1'b0;
@@ -1170,7 +1182,8 @@ module csr_regfile #(
                 
             end
 
-            priv_lvl_d = trap_to_priv_lvl;
+            priv_lvl_d  = trap_to_priv_lvl;
+            virt_mode_d = trap_to_virt_mode;
         end
 
         // ------------------------------
@@ -1564,6 +1577,12 @@ module csr_regfile #(
     assign tvm_o            = mstatus_q.tvm;
     assign tw_o             = mstatus_q.tw;
     assign tsr_o            = mstatus_q.tsr;
+    // new hstatus signals
+    assign vtvm_o           = hstatus_q.vtvm;
+    assign vtw_o            = hstatus_q.vtw;
+    assign vtsr_o           = hstatus_q.vtsr;    
+    assign hu_o             = hstatus_q.hu; 
+    
     assign halt_csr_o       = wfi_q;
 `ifdef PITON_ARIANE
     assign icache_en_o      = icache_q[0];

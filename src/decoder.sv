@@ -37,8 +37,12 @@ module decoder (
     input  riscv::xs_t         fs_i,                    // floating point extension status
     input  logic [2:0]         frm_i,                   // floating-point dynamic rounding mode
     input  logic               tvm_i,                   // trap virtual memory
+    input  logic               hu_i,                    // HU-Hypervisor User mode
     input  logic               tw_i,                    // timeout wait
     input  logic               tsr_i,                   // trap sret
+    input  logic               vtvm_i,                  // virtual trap virtual memory
+    input  logic               vtw_i,                   // virtual timeout wait
+    input  logic               vtsr_i,                  // virtual trap sret    
     output scoreboard_entry_t  instruction_o,           // scoreboard entry to scoreboard
     output logic               is_control_flow_instr_o  // this instruction will change the control flow
 );
