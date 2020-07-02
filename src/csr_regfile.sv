@@ -1068,78 +1068,69 @@ module csr_regfile #(
 
             // trap to supervisor mode
             if (trap_to_priv_lvl == riscv::PRIV_LVL_S) begin
-                // update sstatus
-                mstatus_d.sie  = 1'b0;
-                mstatus_d.spie = mstatus_q.sie;
-                // this can either be user or supervisor mode
-                mstatus_d.spp  = priv_lvl_q[0];
 
-                // set scause or vscause depending upon virtualization mode
-                if (virt_mode_q) begin
-                vscause_d      = ex_i.cause;
-                end else begin				
-                scause_d       = ex_i.cause;
+
+                // S-Mode (shared with HS-mode)
+                if ( trap_to_priv_lvl == 1'b0 ) begin
+                    // update sstatus
+                    mstatus_d.sie  = 1'b0;
+                    mstatus_d.spie = mstatus_q.sie;
+                    // this can either be user or supervisor mode
+                    mstatus_d.spp  = priv_lvl_q[0]; 
+                    // set cause
+                    scause_d       = ex_i.cause;
+                    // set epc
+                    sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};     
+                    // set stval
+                    stval_d        = (ariane_pkg::ZERO_TVAL
+                                      && (ex_i.cause inside {
+                                        riscv::ILLEGAL_INSTR,
+                                        riscv::BREAKPOINT,
+                                        riscv::ENV_CALL_UMODE,
+                                        riscv::ENV_CALL_SMODE,
+                                        riscv::ENV_CALL_MMODE
+                                      } || ex_i.cause[63])) ? '0 : ex_i.tval;                    
+                    
                 end
-				
-                // set sepc or vsepc depending upon virtualization mode
-                if (virt_mode_q) begin
-                vsepc_d        = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-                end else begin				
-                sepc_d         = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};
-                end                
 
-                // set stval or vstval depending upon virtualization mode
-                // INCOMPLETE: how to handle update to htval?
-                htval_d = 64'b0;
-				
-                if (virt_mode_q) begin		
-                    vstval_d   = (ariane_pkg::ZERO_TVAL
-                                  && (ex_i.cause inside {
-                                    riscv::ILLEGAL_INSTR,
-                                    riscv::BREAKPOINT,
-                                    riscv::ENV_CALL_UMODE,
-                                    riscv::ENV_CALL_SMODE,
-                                    riscv::ENV_CALL_MMODE
-                                    } || ex_i.cause[63])) ? '0 : ex_i.tval;
-					
-                end else begin	
-                    stval_d    = (ariane_pkg::ZERO_TVAL
-                                    && (ex_i.cause inside {
-                                    riscv::ILLEGAL_INSTR,
-                                    riscv::BREAKPOINT,
-                                    riscv::ENV_CALL_UMODE,
-                                    riscv::ENV_CALL_SMODE,
-                                    riscv::ENV_CALL_MMODE
-                                    } || ex_i.cause[63])) ? '0 : ex_i.tval;
-                end
-				
-                htinst_d = 64'b0;
-				
-                // VS and HS-Mode cases								  
-                if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_S) begin
-                    if(virt_mode == 1'b1) begin
-                        hstatus_d.spv = 1'b1;
-                        hstatus_d.spp = 1'b1;
-                        vsstatus_d.spv = 1'b1;
-                        virt_mode_d = 1'b1;
-                end else begin
-                        hstatus_d.spv = 1'b0;
-                        hstatus_d.spp = 1'b1;
-                        virt_mode_d = 1'b0;
-                    end			
-                end 
 
-                // VU and U-Mode cases
-                if (ISA_CODE[7] && priv_lvl_q == riscv::PRIV_LVL_U) begin
-                    if (virt_mode == 1'b1) begin
-                        hstatus_d.spv = 1'b1;
-                        hstatus_d.spp = 1'b0;
-                        vsstatus_d.spp = 1'b0;
+                // trap to VS-Mode
+                if (ISA_CODE[7] ) begin
+                
+                    if ( trap_to_virt_mode ) begin
+                        vsstatus_d.spp   = priv_lvl_q[0];
+                        vsstatus_d.sie   = 1'b0;
+                        vsstatus_d.spie  = vsstatus_d.sie;
+                        // set vscause
+                        vscause_d        = ex_i.cause;
+                        // set vsepc
+                        vsepc_d          = {{64-riscv::VLEN{pc_i[riscv::VLEN-1]}},pc_i};  
+                        // set vstval
+                        vstval_d        = (ariane_pkg::ZERO_TVAL
+                                          && (ex_i.cause inside {
+                                            riscv::ILLEGAL_INSTR,
+                                            riscv::BREAKPOINT,
+                                            riscv::ENV_CALL_UMODE,
+                                            riscv::ENV_CALL_SMODE,
+                                            riscv::ENV_CALL_MMODE
+                                          } || ex_i.cause[63])) ? '0 : ex_i.tval;                         
+                        
                     end else begin
-                        hstatus_d.spv = 1'b0;
-                        hstatus_d.spp = 1'b0;					
-                    end	
-                end
+                    
+                    // trap to HS-Mode
+                        virt_mode_d     = 1'b0;   
+                        hstatus_d.spvp  = priv_lvl_q[0];
+                        hstatus_d.gva   = 1'b0;              // hardwired to zero. But depends on trap codes
+                        if( virt_mode_q == 1'b1 ) begin
+                            hstatus_d.spv = virt_mode_q;
+                        end
+                        
+                        htval_d = 64'b0; 
+                        htinst_d = 64'b0;    
+                    end
+                
+                end // ISA_CODE[7] ends
+                              				
 				
             // trap to machine mode
             end else begin
@@ -1171,15 +1162,12 @@ module csr_regfile #(
                                     riscv::ENV_CALL_SMODE,
                                     riscv::ENV_CALL_MMODE
                                   } || ex_i.cause[63])) ? '0 : ex_i.tval;
-                     
-                mstatus_d.gva  = (ariane_pkg::ZERO_TVAL
-                                  && (ex_i.cause inside {
-                                    riscv::ILLEGAL_INSTR,
-                                    riscv::BREAKPOINT,
-                                    riscv::ENV_CALL_UMODE,
-                                    riscv::ENV_CALL_SMODE,
-                                    riscv::ENV_CALL_MMODE
-                                  } || ex_i.cause[63])) ? 1'b0 : 1'b1;								  
+                                  
+                if ( ISA_CODE[7] ) begin
+                    mstatus_d.gva  = 1'b0;      // hardwired to zero. But depends on trap codes
+                end
+                
+                
             end
 
             priv_lvl_d = trap_to_priv_lvl;
