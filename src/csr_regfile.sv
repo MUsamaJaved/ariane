@@ -187,6 +187,7 @@ module csr_regfile #(
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
         read_access_exception = 1'b0;
+        virt_read_exception   = 1'b0;
         z = 64'b0;
         perf_addr_o = csr_addr.address[4:0];
 
@@ -369,8 +370,8 @@ module csr_regfile #(
                         read_access_exception = 1'b1;
 						
                     else begin					
-                    if ( (virt_mode_q==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
-                        read_access_exception = 1'b1;
+                    if ( (virt_mode_q==1'b1) && priv_lvl_o == riscv::PRIV_LVL_S && hstatus_q.vtvm) begin
+                        virt_read_exception = 1'b1;
                     end else begin
                         csr_rdata = hgatp_q;
                     end
@@ -525,6 +526,7 @@ module csr_regfile #(
         eret_o                  = 1'b0;
         flush_o                 = 1'b0;
         update_access_exception = 1'b0;
+        virt_update_exception   = 1'b0;
 
         set_debug_pc_o          = 1'b0;
 
@@ -573,6 +575,29 @@ module csr_regfile #(
         sscratch_d              = sscratch_q;
         stval_d                 = stval_q;
         satp_d                  = satp_q;
+        
+        // hypervisor mode registers
+        hstatus_d               = hstatus_q;
+        hedeleg_d               = hedeleg_q;
+        hideleg_d               = hideleg_q;
+        hvip_d                  = hvip_q;
+        hip_d                   = hip_q;
+        hie_d                   = hie_q;
+        hgeip_d                 = hgeip_q;
+        hgeie_d                 = hgeie_q;
+        hcounteren_d            = hcounteren_q;
+        htval_d                 = htval_q;
+        htinst_d                = htinst_q;
+        hgatp_d                 = hgatp_q;
+        vsstatus_d              = vsstatus_q;    
+        vsip_d                  = vsip_q;
+        vsie_d                  = vsie_q;
+        vstvec_d                = vstvec_q;
+        vsscratch_d             = vsscratch_q;
+        vsepc_d                 = vsepc_q;
+        vscause_d               = vscause_q;
+        vstval_d                = vstval_q;        
+        vsatp_d                 = vsatp_q;
 
         en_ld_st_translation_d  = en_ld_st_translation_q;
         dirty_fp_state_csr      = 1'b0;
@@ -862,8 +887,8 @@ module csr_regfile #(
 						
                     else begin		
                     
-                    if ( (virt_mode_q==1'b0) && priv_lvl_o == riscv::PRIV_LVL_S && mstatus_q.tvm) begin
-                        read_access_exception = 1'b1;
+                    if ( (virt_mode_q==1'b1) && priv_lvl_o == riscv::PRIV_LVL_S && hstatus_q.tvm) begin
+                        virt_read_exception = 1'b1;
                     end else begin
                         hgatp       = riscv::hgatp_t'(csr_wdata);
                                                                     
@@ -1313,7 +1338,7 @@ module csr_regfile #(
                     virt_mode_d    = mstatus_q.mpv;
                     mstatus_d.mpv  = 1'b0;
                 end
-			end
+            end
             
         end
 
@@ -1463,15 +1488,16 @@ module csr_regfile #(
                     riscv::PRIV_LVL_M: privilege_violation = 1'b0;
                     riscv::PRIV_LVL_S: 
                                         if (virt_mode_q ==1'b0) begin
-                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]];
+                                            privilege_violation   = ~mcounteren_q[csr_addr_i[4:0]];
                                         end else begin
-                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
+                                            privilege_violation   = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
+                                            virt_update_exception = mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]];
                                         end
                     riscv::PRIV_LVL_U: 
                                         if (virt_mode_q ==1'b0) begin
-                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                                            privilege_violation   = ~mcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
                                         end else begin
-                                            privilege_violation = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
+                                            privilege_violation   = ~mcounteren_q[csr_addr_i[4:0]] & ~hcounteren_q[csr_addr_i[4:0]] & ~scounteren_q[csr_addr_i[4:0]];
                                         end
                 endcase
             end
@@ -1500,6 +1526,12 @@ module csr_regfile #(
           csr_exception_o.cause = riscv::ILLEGAL_INSTR;
           csr_exception_o.valid = 1'b1;
         end
+        
+        if (virt_read_exception || virt_update_exception) begin
+            csr_exception_o.cause = riscv::VIRTUAL_INST;
+            csr_exception_o.valid = 1'b1;
+        end
+        
     end
 
     // -------------------
@@ -1586,8 +1618,12 @@ module csr_regfile #(
     assign frm_o            = fcsr_q.frm;
     assign fprec_o          = fcsr_q.fprec;
     // MMU outputs
-    assign satp_ppn_o       = satp_q.ppn;
-    assign asid_o           = satp_q.asid[AsidWidth-1:0];
+    assign satp_ppn_o       = (virt_mode_q == 1'b1) ? vsatp_q.ppn : satp_q.ppn;
+    assign asid_o           = (virt_mode_q == 1'b1) ? vsatp_q.asid[AsidWidth-1:0] : satp_q.asid[AsidWidth-1:0];  
+    
+    assign hgatp_ppn_o      = hgatp_q.ppn;
+    assign hgatp_asid_o     = hgatp_q.asid[AsidWidth-1:0];
+    
     assign sum_o            = mstatus_q.sum;
     // we support bare memory addressing and SV39
     assign en_translation_o = ( (ISA_CODE[7] && (!virt_mode_q) && satp_q.mode == 4'h8) && priv_lvl_o != riscv::PRIV_LVL_M)
@@ -1654,6 +1690,28 @@ module csr_regfile #(
             sscratch_q             <= 64'b0;
             stval_q                <= 64'b0;
             satp_q                 <= 64'b0;
+            // hypervisor mode registers
+            hstatus_q              <= 64'b0;
+            hedeleg_q              <= 64'b0;
+            hideleg_q              <= 64'b0;
+            hvip_q                 <= 64'b0;
+            hip_q                  <= 64'b0;
+            hie_q                  <= 64'b0;
+            hgeip_q                <= 64'b0;
+            hgeie_q                <= 64'b0;
+            hcounteren_q           <= 64'b0;
+            htval_q                <= 64'b0;
+            htinst_q               <= 64'b0;
+            hgatp_q                <= 64'b0;
+            vsstatus_q             <= 64'b0;    
+            vsip_q                 <= 64'b0;
+            vsie_q                 <= 64'b0;
+            vstvec_q               <= 64'b0;
+            vsscratch_q            <= 64'b0;
+            vsepc_q                <= 64'b0;
+            vscause_q              <= 64'b0;
+            vstval_q               <= 64'b0;
+            vsatp_q                <= 64'b0;            
             // timer and counters
             cycle_q                <= 64'b0;
             instret_q              <= 64'b0;
@@ -1695,6 +1753,28 @@ module csr_regfile #(
             sscratch_q             <= sscratch_d;
             stval_q                <= stval_d;
             satp_q                 <= satp_d;
+            // hypervisor mode registers
+            hstatus_q              <= hstatus_d;
+            hedeleg_q              <= hedeleg_d;
+            hideleg_q              <= hideleg_d;
+            hvip_q                 <= hvip_d;
+            hip_q                  <= hip_d;
+            hie_q                  <= hie_d;
+            hgeip_q                <= hgeip_d;
+            hgeie_q                <= hgeie_d;
+            hcounteren_q           <= hcounteren_d;
+            htval_q                <= htval_d;
+            htinst_q               <= htinst_d;
+            hgatp_q                <= hgatp_d;
+            vsstatus_q             <= vsstatus_d;    
+            vsip_q                 <= vsip_d;
+            vsie_q                 <= vsie_d;
+            vstvec_q               <= vstvec_d;
+            vsscratch_q            <= vsscratch_d;
+            vsepc_q                <= vsepc_d;
+            vscause_q              <= vscause_d;
+            vstval_q               <= vstval_d;
+            vsatp_q                <= vsatp_d;
             // timer and counters
             cycle_q                <= cycle_d;
             instret_q              <= instret_d;
