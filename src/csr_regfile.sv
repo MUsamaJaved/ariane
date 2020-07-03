@@ -1429,9 +1429,29 @@ module csr_regfile #(
         // if we are reading or writing, check for the correct privilege level this has
         // precedence over interrupts
         if (csr_op_i inside {CSR_WRITE, CSR_SET, CSR_CLEAR, CSR_READ}) begin
+
             if ( !ISA_CODE[7] && (riscv::priv_lvl_t'(priv_lvl_o & csr_addr.csr_decode.priv_lvl) != csr_addr.csr_decode.priv_lvl) ) begin
                 privilege_violation = 1'b1;
             end
+
+            if (ISA_CODE[7]) begin
+                
+                if ( csr_addr_i[9:8] == 2'b10 ) begin   // check access for HS-CSRs
+                                                           
+                    if ( priv_lvl_o == riscv::PRIV_LVL_U || ( priv_lvl_o == riscv::PRIV_LVL_S && virt_mode_q ==1'b1 ) ) begin
+                        privilege_violation = 1'b1;
+                    end
+                    
+                end else begin
+
+                    if ( riscv::priv_lvl_t'(priv_lvl_o & csr_addr.csr_decode.priv_lvl) != csr_addr.csr_decode.priv_lvl ) begin
+                        privilege_violation = 1'b1;
+                    end
+
+                end
+                
+            end
+
             // check access to debug mode only CSRs
             if (csr_addr_i[11:4] == 8'h7b && !debug_mode_q) begin
                 privilege_violation = 1'b1;
