@@ -174,8 +174,7 @@ module decoder (
                                         instruction_o.op   = ariane_pkg::ADD;
                                         
                                         if (virt_mode_i) begin
-                                            virt_instr     = 1'b1;
-                                            
+                                            virt_instr     = 1'b1;                                            
                                         end else begin                                       
                                             illegal_instr  = 1'b1;
                                         end
@@ -187,33 +186,60 @@ module decoder (
                                     if (instr.instr[31:25] == 7'b1001) begin
                                         // check privilege level, SFENCE.VMA can only be executed in M/S mode
                                         // otherwise decode an illegal instruction
-                                        illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        //illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        
                                         instruction_o.op = ariane_pkg::SFENCE_VMA;
+                                        
                                         // check TVM flag and intercept SFENCE.VMA call if necessary
-                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i)
-                                            illegal_instr = 1'b1;                                            
+                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i && (!virt_mode_i) )
+                                            illegal_instr = 1'b1;
+
+                                        if (priv_lvl_i == riscv::PRIV_LVL_U) begin                                           
+                                            if (virt_mode_i) begin
+                                                virt_instr     = 1'b1;                                            
+                                            end else begin                                       
+                                                illegal_instr  = 1'b1;
+                                            end                                            
+                                        end
+                                            
                                     end        
 
-                                    // SFENCE.VVMA        
+                                    // HFENCE.VVMA        
                                     if (instr.instr[31:25] == 7'b1_0001) begin
-                                        // check privilege level, SFENCE.VVMA can only be executed in M/S mode
+                                        // check privilege level, HFENCE.VVMA can only be executed in M/S mode
                                         // otherwise decode an illegal instruction
-                                        illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
-                                        instruction_o.op = ariane_pkg::SFENCE_VMA;
-                                        // check TVM flag and intercept SFENCE.VMA call if necessary
-                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i)
-                                            illegal_instr = 1'b1;
+                                        //illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        
+                                        instruction_o.op = ariane_pkg::HFENCE_VVMA;
+                                        
+                                        if (virt_mode_i) begin
+                                            virt_instr     = 1'b1;                                            
+                                        end 
+                                        
+                                        if (priv_lvl_i == riscv::PRIV_LVL_U && (!virt_mode_i)) begin                                           
+                                            illegal_instr  = 1'b1;
+                                        end
                                                                                                                            
                                     end
 
-                                    // SFENCE.GVMA        
+                                    // HFENCE.GVMA        
                                     if (instr.instr[31:25] == 7'b11_0001) begin
-                                        // check privilege level, SFENCE.GVMA can only be executed in M/S mode
+                                        // check privilege level, HFENCE.GVMA can only be executed in M/S mode
                                         // otherwise decode an illegal instruction
-                                        illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
-                                        instruction_o.op = ariane_pkg::SFENCE_VMA;
-                                        // check TVM flag and intercept SFENCE.VMA call if necessary
-                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i)
+                                        //illegal_instr    = (priv_lvl_i inside {riscv::PRIV_LVL_M, riscv::PRIV_LVL_S}) ? 1'b0 : 1'b1;
+                                        
+                                        instruction_o.op = ariane_pkg::HFENCE_VGMA;
+                                        
+                                        if (virt_mode_i) begin
+                                            virt_instr     = 1'b1;                                            
+                                        end 
+                                        
+                                        if (priv_lvl_i == riscv::PRIV_LVL_U && (!virt_mode_i)) begin                                           
+                                            illegal_instr  = 1'b1;
+                                        end                                        
+                                        
+                                        // check TVM flag and intercept HFENCE.GVMA call if necessary
+                                        if (priv_lvl_i == riscv::PRIV_LVL_S && tvm_i && (!virt_mode_i) )
                                             illegal_instr = 1'b1;
                                                                                                                            
                                     end
@@ -221,6 +247,13 @@ module decoder (
                                 end
                             endcase
                         end
+                        
+                        // new Hypervisor Virtual-Machine Load and Store Instructions                        
+                        3'b100: begin
+
+                            // decode the immiediate field                        
+                        end
+                        
                         // atomically swaps values in the CSR and integer register
                         3'b001: begin// CSRRW
                             imm_select = IIMM;
