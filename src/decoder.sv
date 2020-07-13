@@ -248,10 +248,121 @@ module decoder (
                             endcase
                         end
                         
-                        // new Hypervisor Virtual-Machine Load and Store Instructions                        
+                        // new Hyper-visor Virtual-Machine Load and Store Instructions
+                        // HLV, HSV, and HLVX
                         3'b100: begin
+                            
+                            if ( instr.rtype.funct7 inside {7'b0110001, 7'b0110011, 7'b0110101, 7'b0110111} ) begin
+                                // New HSV Store instructions
+                                instruction_o.fu  = STORE;
+                                imm_select = SIMM;
+                                instruction_o.rs1[4:0]  = instr.stype.rs1;
+                                instruction_o.rs2[4:0]  = instr.stype.rs2;
+                            
+                            end else begin
+                                // New HLV Load instructions
+                                instruction_o.fu  = LOAD;
+                                imm_select = IIMM;
+                                instruction_o.rs1[4:0] = instr.itype.rs1;
+                                instruction_o.rd[4:0]  = instr.itype.rd;                            
+                            end
+                            
+                            if ( (!virt_mode_i) && (priv_lvl_i == riscv::PRIV_LVL_U) && (!hu_i) ) begin
+                                illegal_instr = 1'b1;
+                            end
+                            
+                            if ( virt_mode_i ) begin
+                                virt_instr = 1'b1;
+                            end                            
+                            
+                            unique case (instr.rtype.funct7)
+                                7'b0110001: begin                                    
+                                    instruction_o.op  = ariane_pkg::HSV_B;                                                                       
+                                end
 
-                            // decode the immiediate field                        
+                                7'b0110011: begin
+                                    instruction_o.op  = ariane_pkg::HSV_H;                                
+                                end
+
+                                7'b0110101: begin
+                                    instruction_o.op  = ariane_pkg::HSV_W;                                
+                                end
+
+                                7'b0110111: begin
+                                    instruction_o.op  = ariane_pkg::HSV_D;                                
+                                end
+
+                                7'b0110000: begin
+                                // HLV_B and HVL_BU
+                                    if ( !(instr.instr[24:20] == 5'b00000  || instr.instr[24:20] == 5'b00001) ) begin
+                                        illegal_instr  = 1'b1;
+                                    end
+                                    
+                                    if (instr.instr[24:20] == 5'b00000) begin
+                                        instruction_o.op  = ariane_pkg::HLV_B;
+                                    end
+
+                                    if (instr.instr[24:20] == 5'b00001) begin
+                                        instruction_o.op  = ariane_pkg::HLV_BU;
+                                    end
+                                    
+                                end
+
+                                7'b0110010: begin
+                                // HLV_H, HLV_HU, and HLVX_HU
+                                    if ( !(instr.instr[24:20] == 5'b00000  || instr.instr[24:20] == 5'b00001
+                                            || instr.instr[24:20] == 5'b00010 ) ) begin
+                                        illegal_instr  = 1'b1;
+                                    end
+                                    
+                                    if (instr.instr[24:20] == 5'b00000) begin
+                                        instruction_o.op  = ariane_pkg::HLV_H;
+                                    end
+
+                                    if (instr.instr[24:20] == 5'b00001) begin
+                                        instruction_o.op  = ariane_pkg::HLV_HU;
+                                    end
+
+                                    if (instr.instr[24:20] == 5'b00010) begin
+                                        instruction_o.op  = ariane_pkg::HLVX_HU;
+                                    end                                                                    
+                                end
+
+                                7'b0110100: begin
+                                // HLV_W, HLVX_WU, and HLV_WU
+                                    if ( !(instr.instr[24:20] == 5'b00000  || instr.instr[24:20] == 5'b00011
+                                            || instr.instr[24:20] == 5'b00001 ) ) begin
+                                        illegal_instr  = 1'b1;
+                                    end
+                                    
+                                    if (instr.instr[24:20] == 5'b00000) begin
+                                        instruction_o.op  = ariane_pkg::HLV_W;
+                                    end
+
+                                    if (instr.instr[24:20] == 5'b00011) begin
+                                        instruction_o.op  = ariane_pkg::HLVX_WU;
+                                    end
+
+                                    if (instr.instr[24:20] == 5'b00001) begin
+                                        instruction_o.op  = ariane_pkg::HLV_WU;
+                                    end                                
+                                end            
+                                7'b0110110: begin
+                                // HLV_D
+                                    if ( !(instr.instr[24:20] == 5'b00001 ) ) begin
+                                        illegal_instr  = 1'b1;
+                                    end
+                                    
+                                    if (instr.instr[24:20] == 5'b00001) begin
+                                        instruction_o.op  = ariane_pkg::HLV_D;
+                                    end
+                                end
+                                
+                                default: illegal_instr = 1'b1;
+                            
+                            endcase
+                            
+                            // decode the immediate field                        
                         end
                         
                         // atomically swaps values in the CSR and integer register
